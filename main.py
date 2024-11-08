@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QFileDialog, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton,QComboBox, QFileDialog, QHBoxLayout, QFrame, QSlider
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtCore import QUrl, QTimer
+from PyQt5.QtCore import QUrl, QTimer, Qt
 import pyqtgraph as pg
 import numpy as np
 import wave
@@ -26,9 +26,7 @@ class SignalViewer(QWidget):
         with wave.open(file_path, 'rb') as wave_file:
             self.sample_rate = wave_file.getframerate()
             self.audio_data = np.frombuffer(wave_file.readframes(-1), dtype=np.int16)
-            print('Waveform loaded:' , self.sample_rate)
-            print('Audio Signal: ' , self.audio_data)
-            duration = (len(self.audio_data) / self.sample_rate)/2
+            duration = (len(self.audio_data) / self.sample_rate) / 2
             x = np.linspace(0, duration, len(self.audio_data))
             self.plot_item.setData(x, self.audio_data)
             self.plot_widget.setXRange(x[0], x[-1])
@@ -39,7 +37,7 @@ class SignalViewer(QWidget):
         self.timer.start(35)
 
     def update_needle(self):
-        if self.media_player.state() == QMediaPlayer.PlayingState:
+        if self.media_player.state() == QMediaPlayer.State.PlayingState:
             position = self.media_player.position() / 1000.0
             self.needle.setPos(position)
 
@@ -54,18 +52,18 @@ class SignalViewer(QWidget):
         self.timer.start(35)
 
     def forward_audio(self):
-        was_playing = self.media_player.state() == QMediaPlayer.PlayingState
+        was_playing = self.media_player.state() == QMediaPlayer.State.PlayingState
         self.pause_audio()
         current_position = self.media_player.position()
-        self.media_player.setPosition(current_position + 1000)  
+        self.media_player.setPosition(current_position + 1000)
         if was_playing:
             self.play_audio()
 
     def backward_audio(self):
-        was_playing = self.media_player.state() == QMediaPlayer.PlayingState
+        was_playing = self.media_player.state() == QMediaPlayer.State.PlayingState
         self.pause_audio()
         current_position = self.media_player.position()
-        self.media_player.setPosition(max(0, current_position - 1000))  
+        self.media_player.setPosition(max(0, current_position - 1000))
         if was_playing or self.media_player.state() == QMediaPlayer.State.StoppedState:
             self.play_audio()
 
@@ -75,16 +73,36 @@ class MainApp(QMainWindow):
         self.setWindowTitle("Simple Signal Viewer")
         self.setGeometry(100, 100, 800, 600)
 
-        self.viewer_layout = QHBoxLayout()
-        
+        self.current_mode = 'Uniform Mode'
+        self.freq_data = None
+        self.freq_ranges = []
+        self.sliders = []
+
+        self.left_frame = QFrame()
+        self.left_frame.setMaximumWidth(400)
+        self.left_frame.setMinimumWidth(400)
+        self.left_layout = QVBoxLayout()
+        self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.left_frame.setLayout(self.left_layout)
+
+        self.right_frame = QFrame()
+        self.right_layout = QVBoxLayout()
+        self.right_frame.setLayout(self.right_layout)
+
         self.input_viewer = SignalViewer()
         self.output_viewer = SignalViewer()
 
         self.input_viewer.plot_widget.setXLink(self.output_viewer.plot_widget)
         self.input_viewer.plot_widget.setYLink(self.output_viewer.plot_widget)
 
+        self.viewer_frame = QFrame()
+        self.viewer_frame.setMaximumHeight(250)
+        self.viewer_layout = QHBoxLayout()
+        self.viewer_frame.setLayout(self.viewer_layout)
         self.viewer_layout.addWidget(self.input_viewer)
         self.viewer_layout.addWidget(self.output_viewer)
+
+        self.right_layout.addWidget(self.viewer_frame)
 
         self.load_button = QPushButton("Load WAV File")
         self.play_button = QPushButton("Play")
@@ -108,13 +126,81 @@ class MainApp(QMainWindow):
         control_layout.addWidget(self.forward_button)
         control_layout.addWidget(self.backward_button)
 
-        layout = QVBoxLayout()
-        layout.addLayout(self.viewer_layout)
-        layout.addLayout(control_layout)
+        self.right_layout.addLayout(control_layout)
+
+
+        self.freq_frame = QFrame()
+        self.freq_frame.setMaximumHeight(250)
+        self.freq_layout = QHBoxLayout()
+        self.freq_frame.setLayout(self.freq_layout)
+
+        self.freq_plot_widget = pg.PlotWidget()
+        self.freq_plot_item = self.freq_plot_widget.plot(pen=pg.mkPen(color='blue'))
+        self.freq_layout.addWidget(self.freq_plot_widget)
+        self.right_layout.addWidget(self.freq_frame)
+
+        self.slider_layout = QHBoxLayout()
+        self.right_layout.addLayout(self.slider_layout)
+        self.update_sliders()
+
+
+        self.spec_frame = QFrame()
+        self.spec_frame.setMaximumHeight(250)
+        self.spec_layout = QHBoxLayout()
+        self.spec_frame.setLayout(self.spec_layout)
+        self.spec_plot_widget_1 = pg.PlotWidget()
+        self.spec_plot_widget_2 = pg.PlotWidget()
+        self.spec_layout.addWidget(self.spec_plot_widget_1)
+        self.spec_layout.addWidget(self.spec_plot_widget_2)
+        self.right_layout.addWidget(self.spec_frame)
+
+
+        self.combo_box = QComboBox()
+        self.combo_box.addItem('Musical Mode')
+        self.combo_box.addItem('Uniform Mode')
+        self.combo_box.addItem('Animal Mode')
+        self.combo_box.addItem('ECG Abnormalities Mode')
+        self.combo_box.currentIndexChanged.connect(self.change_mode)
+        self.left_layout.addWidget(self.combo_box)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.left_frame)
+        layout.addWidget(self.right_frame)
 
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+
+    def change_mode(self, index):
+        self.current_mode = self.combo_box.itemText(index)
+        self.update_sliders()
+        print(self.current_mode)
+
+    def create_sliders(self, slider_num):
+        sliders = []
+        for i in range(slider_num):
+            slider = QSlider(Qt.Orientation.Vertical)
+            slider.setMinimum(0)
+            slider.setMaximum(100)
+            slider.setValue(50)
+            sliders.append(slider)
+        return sliders
+
+    def update_sliders(self):
+        for i in reversed(range(self.slider_layout.count())):
+            widget_to_remove = self.slider_layout.itemAt(i).widget()
+            self.slider_layout.removeWidget(widget_to_remove)
+            widget_to_remove.setParent(None)
+
+        slider_num = 10 if self.current_mode == 'Uniform Mode' else 4
+        self.sliders = self.create_sliders(slider_num)
+        for i, slider in enumerate(self.sliders):
+            # slider.valueChanged.connect(lambda value, index=i: self.update_frequency_amplitude(index, value))
+            self.slider_layout.addWidget(slider)
+
+        # if self.current_mode == 'Uniform Mode' and self.input_viewer.audio_data is not None:
+        #     self.setup_frequency_ranges()
+    
 
     def load_file(self):
         options = QFileDialog.Options()
@@ -124,6 +210,20 @@ class MainApp(QMainWindow):
             self.output_viewer.load_waveform(file_path)
             self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
+            self.update_frequency_graph()
+            # if self.current_mode == 'Uniform Mode':
+            #     self.setup_frequency_ranges()
+
+    def update_frequency_graph(self):
+        if self.input_viewer.audio_data is not None:
+            
+            fft_data = np.fft.fft(self.input_viewer.audio_data)
+            fft_freq = np.fft.fftfreq(len(fft_data), 1 / self.input_viewer.sample_rate)
+            
+            positive_freqs = fft_freq[:len(fft_freq) // 2]
+            positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
+            
+            self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
 
     def play_audio(self):
         self.input_viewer.play_audio()
