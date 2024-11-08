@@ -1,0 +1,77 @@
+## load_waveform
+
+1. Reading the WAV File:
+- **Opening the file**: `wave.open(file_path, 'rb')` opens the WAV file in read-binary mode.
+- **Retrieving the sample rate**: `wave_file.getframerate()` gets the sample rate of the audio file.
+- **Reading audio frames**: `wave_file.readframes(-1)` reads all the frames (audio samples) from the file.
+- **Converting byte data**: `np.frombuffer(wave_file.readframes(-1), dtype=np.int16)` converts the byte data into a NumPy array of 16-bit integers, representing the amplitude values of the audio signal.
+
+2. Storing the Signal:
+- `self.audio_data` stores the amplitude values of the audio signal.
+- `self.sample_rate` stores the sample rate of the audio signal.
+
+3. Generating the Time Axis:
+- **Calculating the duration**: `duration = (len(self.audio_data) / self.sample_rate) / 2` calculates the duration of the audio signal in seconds. The division by 2 likely indicates that the audio data is stereo (two channels), so `self.audio_data` includes samples from both channels.
+- **Generating the time axis**: `x = np.linspace(0, duration, len(self.audio_data))` creates a time axis ranging from 0 to the duration of the audio signal, with the same number of points as there are samples in `self.audio_data`.
+
+4. Plotting the Signal:
+- `self.plot_item.setData(x, self.audio_data)` plots the amplitude values (`self.audio_data`) against the generated time axis (`x`).
+- `self.plot_widget.setXRange(x[0], x[-1])` sets the x-axis range of the plot to cover the full duration of the audio signal.
+- `self.plot_widget.addItem(self.needle)` adds a vertical line (needle) to the plot to indicate the current playback position.
+
+## load_file 
+responsible for handling the loading of a WAV file into the application. Here's a breakdown of what each line does:
+
+1. `options = QFileDialog.Options()`: This line initializes options for the file dialog. These options can be used to customize the behavior of the file dialog, although no specific options are set in this snippet.
+2. `file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)", options=options)`: This line opens a file dialog that allows the user to select a file. The dialog is titled "Open WAV File" and filters the files to show only WAV files by default, but it also allows the user to select any file type. The selected file path is stored in file_path.
+3. `if file_path:`: This line checks if a file path was successfully selected. If the user cancels the dialog, file_path will be empty, and the subsequent code will not execute.
+4. `self.input_viewer.load_waveform(file_path)`: If a file path is selected, this line calls the load_waveform method of the input_viewer object, passing the selected file path. This method loads the waveform data from the file into the input_viewer.
+5. `self.output_viewer.load_waveform(file_path)`: Similarly, this line loads the waveform data into the output_viewer object.
+6. `self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))`: This line sets the media content of the input_viewer's media player to the selected WAV file, allowing it to be played.
+7. `self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))`: This line does the same for the output_viewer's media player, setting it to play the selected WAV file.
+
+
+
+### Note : QMediaPlayer
+
+QMediaPlayer Object
+
+# Properties
+
+= state(): Returns the current state of the media player. The state can be one of the following:
+- QMediaPlayer.StoppedState: The media player is stopped.
+- QMediaPlayer.PlayingState: The media player is playing.
+- QMediaPlayer.PausedState: The media player is paused.
+
+= position(): Returns the current position of the media playback in milliseconds.
+
+# Methods
+
+- play(): Starts or resumes playback of the media.
+- pause(): Pauses the playback of the media.
+- stop(): Stops the playback of the media.
+- setPosition(position): Sets the playback position to the specified value in milliseconds.
+- setMedia(media): Sets the media content to be played. The media parameter is typically a QMediaContent object.
+
+
+## play_audio
+This function starts the playback of the media by calling self.media_player.play(). 
+It also starts a timer with an interval of 35 milliseconds to update the needle position on the plot.
+
+## update_needle
+update_needle: This function is called periodically by the timer. It checks if the media player is in the playing state. If it is, it retrieves the current playback position using self.media_player.position(), converts it to seconds, and updates the position of the needle on the plot.
+
+
+## pause_audio
+pause_audio: This function pauses the playback of the media by calling self.media_player.pause(). It also stops the timer to stop updating the needle position.
+
+
+## rewind_audio
+rewind_audio: This function rewinds the media to the beginning by setting the playback position to 0 using self.media_player.setPosition(0). It then starts playing the media and resets the needle position to 0. The timer is also started to update the needle position.
+
+
+## forward_audio
+forward_audio: This function moves the playback position forward by 1000 milliseconds (1 second). It first checks if the media player was playing, then pauses the playback. It retrieves the current playback position, adds 1000 milliseconds to it, and sets the new position using self.media_player.setPosition(current_position + 1000). If the media player was playing before, it resumes playback.
+
+## backward_audio
+backward_audio: This function moves the playback position backward by 1000 milliseconds (1 second). It first checks if the media player was playing, then pauses the playback. It retrieves the current playback position, subtracts 1000 milliseconds from it (ensuring it doesn't go below 0), and sets the new position using self.media_player.setPosition(max(0, current_position - 1000)). If the media player was playing before or is in the stopped state, it resumes playback.
