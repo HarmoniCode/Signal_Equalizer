@@ -1,5 +1,6 @@
 import csv
-
+import tempfile
+import os
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QComboBox, QFileDialog, \
     QHBoxLayout, QFrame, QSlider
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
@@ -22,6 +23,7 @@ class SignalViewer(QWidget):
         self.plot_item = self.plot_widget.plot(pen=pg.mkPen(color='gray'))
         self.audio_data = None
         self.sample_rate = 0
+        self.temp_wav_file = None
 
         self.layout.addWidget(self.plot_widget)
         self.setLayout(self.layout)
@@ -211,19 +213,15 @@ class MainApp(QMainWindow):
                                                    options=options)
         if file_path:
             self.input_viewer.load_waveform(file_path)
-            # self.output_viewer.load_waveform(file_path)
+            self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
 
             #! Example call to plot_output with the same data as input_viewer
             self.plot_output(self.input_viewer.audio_data)
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
 
-
-            self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
-            self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
-
-            
-            # if self.current_mode == 'Uniform Mode':
-            #     self.setup_frequency_ranges()
+            if hasattr(self.output_viewer, 'temp_wav_file') and os.path.exists(self.output_viewer.temp_wav_file):
+                os.remove(self.output_viewer.temp_wav_file)
+           
 
     def plot_output(self, output_data):
         if self.input_viewer.audio_data is not None:
@@ -231,6 +229,17 @@ class MainApp(QMainWindow):
             x = np.linspace(0, duration, len(output_data))
             self.output_viewer.plot_item.setData(x, output_data)
             self.output_viewer.plot_widget.setXRange(x[0], x[-1])
+
+            # temporary file for the output data
+            temp_wav_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
+            with wave.open(temp_wav_file.name, 'wb') as wave_file:
+                wave_file.setnchannels(1)
+                wave_file.setsampwidth(2)  
+                wave_file.setframerate(self.input_viewer.sample_rate*2)
+                wave_file.writeframes(output_data.tobytes())
+
+            self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(temp_wav_file.name)))
+            self.output_viewer.temp_wav_file = temp_wav_file.name
 
     def update_frequency_graph(self):
         if self.input_viewer.audio_data is not None:
