@@ -227,7 +227,7 @@ class MainApp(QMainWindow):
             self.output_viewer.plot_widget.setXRange(x[0], x[-1])
             
             temp_wav_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            sf.write(temp_wav_file.name, output_data, self.input_viewer.sample_rate)
+            sf.write(temp_wav_file.name, output_data, 2*self.input_viewer.sample_rate)
             
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(temp_wav_file.name)))
             self.output_viewer.temp_wav_file = temp_wav_file.name
@@ -247,7 +247,7 @@ class MainApp(QMainWindow):
             reconstructed_signal = np.fft.ifft(fft_data).real
             
             # Normalize the reconstructed signal
-            reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) * 32767)
+            reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) *0.5* 32767)
             
             self.csv_exporter("rec_sig.csv", reconstructed_signal)
             
