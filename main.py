@@ -213,7 +213,7 @@ class MainApp(QMainWindow):
                                                    options=options)
         if file_path:
             self.input_viewer.load_waveform(file_path)
-            self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
+            # self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
 
             #! Example call to plot_output with the same data as input_viewer
             self.plot_output(self.input_viewer.audio_data)
