@@ -247,7 +247,7 @@ class MainApp(QMainWindow):
             reconstructed_signal = np.fft.ifft(fft_data).real
             
             # Normalize the reconstructed signal
-            reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) *0.5* 32767)
+            reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) * 32767)
             
             self.csv_exporter("rec_sig.csv", reconstructed_signal)
             
