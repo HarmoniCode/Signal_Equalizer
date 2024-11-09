@@ -145,8 +145,7 @@ class MainApp(QMainWindow):
 
         self.slider_layout = QHBoxLayout()
         self.right_layout.addLayout(self.slider_layout)
-        
-        
+
         self.update_sliders()
 
         self.spec_frame = QFrame()
@@ -199,11 +198,7 @@ class MainApp(QMainWindow):
         slider_num = 10 if self.current_mode == 'Uniform Mode' else 4
         self.sliders = self.create_sliders(slider_num)
         for i, slider in enumerate(self.sliders):
-            # slider.valueChanged.connect(lambda value, index=i: self.update_frequency_amplitude(index, value))
             self.slider_layout.addWidget(slider)
-
-        # if self.current_mode == 'Uniform Mode' and self.input_viewer.audio_data is not None:
-        #     self.setup_frequency_ranges()
 
     def load_file(self):
         options = QFileDialog.Options()
@@ -213,17 +208,13 @@ class MainApp(QMainWindow):
             self.input_viewer.load_waveform(file_path)
             # self.output_viewer.load_waveform(file_path)
 
-            #! Example call to plot_output with the same data as input_viewer
+            # ! Example call to plot_output with the same data as input_viewer
             self.plot_output(self.input_viewer.audio_data)
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
 
-
             self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
-
-            
-            # if self.current_mode == 'Uniform Mode':
-            #     self.setup_frequency_ranges()
+            self.update_frequency_graph()
 
     def plot_output(self, output_data):
         if self.input_viewer.audio_data is not None:
@@ -242,6 +233,16 @@ class MainApp(QMainWindow):
             self.get_range_of_frequencies(positive_freqs, positive_magnitudes)
             self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
 
+    def update_frequency_graph(self):
+        if self.input_viewer.audio_data is not None:
+            fft_data = np.fft.fft(self.input_viewer.audio_data)
+            fft_freq = np.fft.fftfreq(len(fft_data), 1 / self.input_viewer.sample_rate)
+
+            positive_freqs = fft_freq[:len(fft_freq) // 2]
+            positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
+
+            self.get_range_of_frequencies(positive_freqs, positive_magnitudes)
+            self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
 
     def get_range_of_frequencies(self, freqs, magnitudes):
         ROF = []
@@ -249,8 +250,9 @@ class MainApp(QMainWindow):
         lowest_needed_amp = std_dev / 10
 
         filtered_freq = [frequency for frequency, amp in zip(freqs, magnitudes) if amp >= lowest_needed_amp]
-        diff = np.diff(filtered_freq)
+        filtered_amp = [amp for frequency, amp in zip(freqs, magnitudes) if amp >= lowest_needed_amp]
 
+        diff = np.diff(filtered_freq)
         for i in range(len(diff)):
             if diff[i] - 50 > 0:
                 ROF.append(filtered_freq[i])
@@ -258,8 +260,25 @@ class MainApp(QMainWindow):
 
         ROF = ROF[1:-1]
         ROF = list(zip(ROF[::2], ROF[1::2]))
-        print(ROF)
+        print("Ranges of Frequencies (ROF):", ROF)
+
+        reconstructed_signal = self.reconstruct_signal_from_filtered(freqs, magnitudes, filtered_freq, filtered_amp)
+        self.plot_output(reconstructed_signal)
         return ROF
+
+    def reconstruct_signal_from_filtered(self, original_freqs, original_magnitudes, filtered_freq, filtered_amp):
+        n_samples = len(original_freqs) * 2
+        fourier_data = np.zeros(n_samples, dtype=complex)
+
+        # Fill Fourier data with filtered frequencies and amplitudes
+        for freq, amp in zip(filtered_freq, filtered_amp):
+            idx = int(freq * n_samples / self.input_viewer.sample_rate)
+            if 0 <= idx < n_samples // 2:
+                fourier_data[idx] = amp
+                fourier_data[-idx] = amp
+
+        reconstructed_signal = np.fft.ifft(fourier_data).real
+        return reconstructed_signal
 
     def play_audio(self):
         self.input_viewer.play_audio()
