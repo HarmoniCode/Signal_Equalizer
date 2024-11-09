@@ -205,8 +205,7 @@ class MainApp(QMainWindow):
 
     def load_file(self):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)",
-                                                   options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)",options=options)
         if file_path:
             self.input_viewer.load_waveform(file_path)
             self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
@@ -222,28 +221,36 @@ class MainApp(QMainWindow):
 
     def plot_output(self, output_data):
         if self.input_viewer.audio_data is not None:
-            duration = (len(output_data) / self.input_viewer.sample_rate) / 2
+            duration = (len(output_data) / self.input_viewer.sample_rate)/2
             x = np.linspace(0, duration, len(output_data))
             self.output_viewer.plot_item.setData(x, output_data)
             self.output_viewer.plot_widget.setXRange(x[0], x[-1])
-
+            
             temp_wav_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            sf.write(temp_wav_file.name, output_data, self.input_viewer.sample_rate*2)
-
+            sf.write(temp_wav_file.name, output_data, self.input_viewer.sample_rate)
+            
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(temp_wav_file.name)))
             self.output_viewer.temp_wav_file = temp_wav_file.name
 
     def update_frequency_graph(self):
         if self.input_viewer.audio_data is not None:
+            # Apply FFT
             fft_data = np.fft.fft(self.input_viewer.audio_data)
             fft_freq = np.fft.fftfreq(len(fft_data), 1 / self.input_viewer.sample_rate)
+            
             positive_freqs = fft_freq[:len(fft_freq) // 2]
             positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
-
+            
+            # Plot frequency domain (for visualization)
             self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
-
+            
             reconstructed_signal = np.fft.ifft(fft_data).real
-            self.csv_exporter("rec_sig.csv",reconstructed_signal)
+            
+            # Normalize the reconstructed signal
+            reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) * 32767)
+            
+            self.csv_exporter("rec_sig.csv", reconstructed_signal)
+            
             self.plot_output(reconstructed_signal)
 
     def get_range_of_frequencies(self, freqs, magnitudes):
