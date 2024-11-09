@@ -141,6 +141,8 @@ class MainApp(QMainWindow):
 
         self.slider_layout = QHBoxLayout()
         self.right_layout.addLayout(self.slider_layout)
+        
+        
         self.update_sliders()
 
 
@@ -207,23 +209,35 @@ class MainApp(QMainWindow):
         file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)", options=options)
         if file_path:
             self.input_viewer.load_waveform(file_path)
-            self.output_viewer.load_waveform(file_path)
+            # self.output_viewer.load_waveform(file_path)
+
+            #! Example call to plot_output with the same data as input_viewer
+            self.plot_output(self.input_viewer.audio_data)
+            self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
+
+
             self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
             self.update_frequency_graph()
+
+            
             # if self.current_mode == 'Uniform Mode':
             #     self.setup_frequency_ranges()
 
     def update_frequency_graph(self):
         if self.input_viewer.audio_data is not None:
-            
             fft_data = np.fft.fft(self.input_viewer.audio_data)
             fft_freq = np.fft.fftfreq(len(fft_data), 1 / self.input_viewer.sample_rate)
-            
             positive_freqs = fft_freq[:len(fft_freq) // 2]
             positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
-            
             self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
+
+    def plot_output(self, output_data):
+        if self.input_viewer.audio_data is not None:
+            duration = (len(output_data) / self.input_viewer.sample_rate) / 2
+            x = np.linspace(0, duration, len(output_data))
+            self.output_viewer.plot_item.setData(x, output_data)
+            self.output_viewer.plot_widget.setXRange(x[0], x[-1])        
 
     def play_audio(self):
         self.input_viewer.play_audio()
