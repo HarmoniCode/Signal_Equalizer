@@ -9,6 +9,7 @@ import pyqtgraph as pg
 import numpy as np
 import wave
 import sys
+import soundfile as sf
 
 
 class SignalViewer(QWidget):
@@ -211,11 +212,10 @@ class MainApp(QMainWindow):
             self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
 
-            # Stop and unset media player to allow deletion of previous temp file
             if hasattr(self.output_viewer, 'temp_wav_file') and self.output_viewer.temp_wav_file and os.path.exists(
                     self.output_viewer.temp_wav_file):
                 self.output_viewer.media_player.stop()
-                self.output_viewer.media_player.setMedia(QMediaContent())  # Clear current media
+                self.output_viewer.media_player.setMedia(QMediaContent()) 
                 os.remove(self.output_viewer.temp_wav_file)
 
         self.update_frequency_graph()
@@ -227,13 +227,8 @@ class MainApp(QMainWindow):
             self.output_viewer.plot_item.setData(x, output_data)
             self.output_viewer.plot_widget.setXRange(x[0], x[-1])
 
-            # temporary file for the output data
             temp_wav_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            with wave.open(temp_wav_file.name, 'wb') as wave_file:
-                wave_file.setnchannels(1)
-                wave_file.setsampwidth(2)
-                wave_file.setframerate(self.input_viewer.sample_rate * 2)
-                wave_file.writeframes(output_data.tobytes())
+            sf.write(temp_wav_file.name, output_data, self.input_viewer.sample_rate*2)
 
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(temp_wav_file.name)))
             self.output_viewer.temp_wav_file = temp_wav_file.name
