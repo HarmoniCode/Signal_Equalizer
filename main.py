@@ -220,11 +220,17 @@ class MainApp(QMainWindow):
 
             self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
-            self.update_frequency_graph()
 
             
             # if self.current_mode == 'Uniform Mode':
             #     self.setup_frequency_ranges()
+
+    def plot_output(self, output_data):
+        if self.input_viewer.audio_data is not None:
+            duration = (len(output_data) / self.input_viewer.sample_rate) / 2
+            x = np.linspace(0, duration, len(output_data))
+            self.output_viewer.plot_item.setData(x, output_data)
+            self.output_viewer.plot_widget.setXRange(x[0], x[-1])
 
     def update_frequency_graph(self):
         if self.input_viewer.audio_data is not None:
@@ -234,10 +240,8 @@ class MainApp(QMainWindow):
             positive_freqs = fft_freq[:len(fft_freq) // 2]
             positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
             self.get_range_of_frequencies(positive_freqs, positive_magnitudes)
-            self.freq_plot_item.setData(positive_freqs, positive_magnitudes
-                                        )
+            self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
 
-    import numpy as np
 
     def get_range_of_frequencies(self, freqs, magnitudes):
         ROF = []
