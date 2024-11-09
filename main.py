@@ -1,10 +1,14 @@
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton,QComboBox, QFileDialog, QHBoxLayout, QFrame, QSlider
+import csv
+
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QComboBox, QFileDialog, \
+    QHBoxLayout, QFrame, QSlider
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
 import pyqtgraph as pg
 import numpy as np
 import wave
 import sys
+
 
 class SignalViewer(QWidget):
     def __init__(self):
@@ -67,6 +71,7 @@ class SignalViewer(QWidget):
         if was_playing or self.media_player.state() == QMediaPlayer.State.StoppedState:
             self.play_audio()
 
+
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -128,7 +133,6 @@ class MainApp(QMainWindow):
 
         self.right_layout.addLayout(control_layout)
 
-
         self.freq_frame = QFrame()
         self.freq_frame.setMaximumHeight(250)
         self.freq_layout = QHBoxLayout()
@@ -145,7 +149,6 @@ class MainApp(QMainWindow):
         
         self.update_sliders()
 
-
         self.spec_frame = QFrame()
         self.spec_frame.setMaximumHeight(250)
         self.spec_layout = QHBoxLayout()
@@ -155,7 +158,6 @@ class MainApp(QMainWindow):
         self.spec_layout.addWidget(self.spec_plot_widget_1)
         self.spec_layout.addWidget(self.spec_plot_widget_2)
         self.right_layout.addWidget(self.spec_frame)
-
 
         self.combo_box = QComboBox()
         self.combo_box.addItem('Musical Mode')
@@ -202,11 +204,11 @@ class MainApp(QMainWindow):
 
         # if self.current_mode == 'Uniform Mode' and self.input_viewer.audio_data is not None:
         #     self.setup_frequency_ranges()
-    
 
     def load_file(self):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)", options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)",
+                                                   options=options)
         if file_path:
             self.input_viewer.load_waveform(file_path)
             # self.output_viewer.load_waveform(file_path)
@@ -228,16 +230,32 @@ class MainApp(QMainWindow):
         if self.input_viewer.audio_data is not None:
             fft_data = np.fft.fft(self.input_viewer.audio_data)
             fft_freq = np.fft.fftfreq(len(fft_data), 1 / self.input_viewer.sample_rate)
+
             positive_freqs = fft_freq[:len(fft_freq) // 2]
             positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
-            self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
+            self.get_range_of_frequencies(positive_freqs, positive_magnitudes)
+            self.freq_plot_item.setData(positive_freqs, positive_magnitudes
+                                        )
 
-    def plot_output(self, output_data):
-        if self.input_viewer.audio_data is not None:
-            duration = (len(output_data) / self.input_viewer.sample_rate) / 2
-            x = np.linspace(0, duration, len(output_data))
-            self.output_viewer.plot_item.setData(x, output_data)
-            self.output_viewer.plot_widget.setXRange(x[0], x[-1])        
+    import numpy as np
+
+    def get_range_of_frequencies(self, freqs, magnitudes):
+        ROF = []
+        std_dev = np.std(magnitudes)
+        lowest_needed_amp = std_dev / 10
+
+        filtered_freq = [frequency for frequency, amp in zip(freqs, magnitudes) if amp >= lowest_needed_amp]
+        diff = np.diff(filtered_freq)
+
+        for i in range(len(diff)):
+            if diff[i] - 50 > 0:
+                ROF.append(filtered_freq[i])
+                ROF.append(filtered_freq[i + 1])
+
+        ROF = ROF[1:-1]
+        ROF = list(zip(ROF[::2], ROF[1::2]))
+        print(ROF)
+        return ROF
 
     def play_audio(self):
         self.input_viewer.play_audio()
@@ -259,11 +277,13 @@ class MainApp(QMainWindow):
         self.input_viewer.backward_audio()
         self.output_viewer.backward_audio()
 
+
 def main():
     app = QApplication(sys.argv)
     window = MainApp()
     window.show()
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()
