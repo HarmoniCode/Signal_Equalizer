@@ -170,8 +170,8 @@ class MainApp(QMainWindow):
         self.right_layout.addWidget(self.spec_frame)
 
         self.combo_box = QComboBox()
-        self.combo_box.addItem('Musical Mode')
         self.combo_box.addItem('Uniform Mode')
+        self.combo_box.addItem('Musical Mode')
         self.combo_box.addItem('Animal Mode')
         self.combo_box.addItem('ECG Abnormalities Mode')
         self.combo_box.currentIndexChanged.connect(self.change_mode)
@@ -188,6 +188,7 @@ class MainApp(QMainWindow):
 
     def create_sliders(self, slider_num):
         slider_layouts = []
+        self.sliders = []
         if self.input_viewer.audio_data is not None:
             min_label, max_label = self.update_frequency_graph()
         else:
@@ -216,14 +217,85 @@ class MainApp(QMainWindow):
                 slider_container.addWidget(label)
 
                 slider_layouts.append(slider_container)
-
+                self.sliders.append(slider)
+                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
         elif self.current_mode == "Musical Mode":
-            pass
+
+            freq_labels = ["Flute", "Guitar", "Drums", "Violin"]
+            freq_ranges = [(0, 1000), (1000, 2000), (2000, 4000), (4000, 14000)]
+
+            for i in range(slider_num):
+                slider_container = QVBoxLayout()
+
+                slider = QSlider(Qt.Orientation.Vertical)
+                slider.setMinimum(0)
+                slider.setMaximum(10)
+                slider.setValue(5)
+                slider.setTickPosition(QSlider.TicksBothSides)
+                slider.setTickInterval(1)
+
+                label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
+                label.setAlignment(Qt.AlignLeft)
+
+                slider_container.addWidget(slider)
+                slider_container.addWidget(label)
+
+                slider_layouts.append(slider_container)
+                self.sliders.append(slider)
+                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
         elif self.current_mode == "Animal Mode":
-            pass
+
+            freq_labels = ["Frog", "Bird", "Cricket", "Bat"]
+            freq_ranges = [0, 1100], [1100, 3000], [3000, 6500], [6500, 22000]
+
+
+            for i in range(slider_num):
+                slider_container = QVBoxLayout()
+
+                slider = QSlider(Qt.Orientation.Vertical)
+                slider.setMinimum(0)
+                slider.setMaximum(10)
+                slider.setValue(5)
+                slider.setTickPosition(QSlider.TicksBothSides)
+                slider.setTickInterval(1)
+
+                label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
+                label.setAlignment(Qt.AlignLeft)
+
+                slider_container.addWidget(slider)
+                slider_container.addWidget(label)
+
+                slider_layouts.append(slider_container)
+                self.sliders.append(slider)
+                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
         elif self.current_mode == "ECG Abnormalities Mode":
-            pass
+            for i in range(slider_num):
+
+                slider_container = QVBoxLayout()
+
+                slider = QSlider(Qt.Orientation.Vertical)
+                slider.setMinimum(0)
+                slider.setMaximum(10)
+                slider.setValue(5)
+                slider.setTickPosition(QSlider.TicksBothSides)
+                slider.setTickInterval(1)
+
+                if i == 0:
+                    label = QLabel(f" ({min_label:.1f}, {max_label * (i + 1):.1f}) KHz")
+                else:
+                    label = QLabel(f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz")
+
+                label.setAlignment(Qt.AlignLeft)
+
+                slider_container.addWidget(slider)
+                slider_container.addWidget(label)
+
+                slider_layouts.append(slider_container)
+                self.sliders.append(slider)
+                slider.valueChanged.connect(self.update_frequency_graph)
+
         return slider_layouts
+
 
     def change_mode(self, index):
         self.current_mode = self.combo_box.itemText(index)
@@ -277,31 +349,43 @@ class MainApp(QMainWindow):
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(temp_wav_file.name)))
             self.output_viewer.temp_wav_file = temp_wav_file.name
 
-    def update_frequency_graph(self):
+    def update_frequency_graph(self, index=None):
         if self.input_viewer.audio_data is not None:
-
-            fft_data = np.fft.fft(self.input_viewer.audio_data)
-            fft_freq = np.fft.fftfreq(len(fft_data), 1 / self.input_viewer.sample_rate)
-
-            positive_freqs = fft_freq[:len(fft_freq) // 2]
-            positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
-
-            slider_label_min = positive_freqs[0] / 1000
-            slider_label_max = (positive_freqs[-1] - positive_freqs[0]) / 10000
-
-
-            self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
-
-            reconstructed_signal = np.fft.ifft(fft_data).real
+            if not hasattr(self, 'original_magnitudes'):
+                self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
+                self.fft_freq = np.fft.fftfreq(len(self.ftt_data), 1 / self.input_viewer.sample_rate)
+                self.positive_freqs = self.fft_freq[:len(self.fft_freq) // 2]
+                self.original_magnitudes = np.abs(self.ftt_data[:len(self.ftt_data) // 2])
+                self.modified_magnitudes = self.original_magnitudes.copy()
+                self.slider_label_min = self.positive_freqs[0] / 1000
+                self.slider_label_max = (self.positive_freqs[-1] - self.positive_freqs[0]) / 10000
 
 
+            if index is not None:
+                slider = self.sliders[index]
+                labels = slider.parent().findChildren(QLabel)
+                label_text = labels[index].text()
+                freq_range_text = label_text.split('(')[-1].strip(') KHz')
+                min_freq, max_freq = map(float, freq_range_text.split(','))
+                min_freq *= 1000
+                max_freq *= 1000
+
+                gain = 1 + (slider.value() - 5) * 0.2
+                freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
+                self.modified_magnitudes[freq_range] = self.original_magnitudes[freq_range] * gain
+
+            self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+
+            half_len = len(self.ftt_data) // 2
+            self.ftt_data[:half_len] = self.modified_magnitudes * np.exp(1j * np.angle(self.ftt_data[:half_len]))
+            self.ftt_data[half_len + 1:] = np.conj(self.ftt_data[1:half_len][::-1])
+
+            reconstructed_signal = np.fft.ifft(self.ftt_data).real
             reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) * 32767)
 
             self.csv_exporter("rec_sig.csv", reconstructed_signal)
-
             self.plot_output(reconstructed_signal)
-            return slider_label_min, slider_label_max
-
+            return self.slider_label_min, self.slider_label_max
     # def get_range_of_frequencies(self, freqs, magnitudes):
     #     ROF = []
     #     std_dev = np.std(magnitudes)
