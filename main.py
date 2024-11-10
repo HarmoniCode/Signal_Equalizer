@@ -2,7 +2,7 @@ import csv
 import tempfile
 import os
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QComboBox, QFileDialog, \
-    QHBoxLayout, QFrame, QSlider
+    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
 import pyqtgraph as pg
@@ -86,6 +86,7 @@ class MainApp(QMainWindow):
         self.freq_ranges = []
         self.sliders = []
 
+        # Left side (controls, combo box)
         self.left_frame = QFrame()
         self.left_frame.setMaximumWidth(400)
         self.left_frame.setMinimumWidth(400)
@@ -93,16 +94,20 @@ class MainApp(QMainWindow):
         self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.left_frame.setLayout(self.left_layout)
 
+        # Right side (viewer, sliders, etc.)
         self.right_frame = QFrame()
         self.right_layout = QVBoxLayout()
         self.right_frame.setLayout(self.right_layout)
 
+        # Signal viewers
         self.input_viewer = SignalViewer()
         self.output_viewer = SignalViewer()
 
+        # Link input and output viewers
         self.input_viewer.plot_widget.setXLink(self.output_viewer.plot_widget)
         self.input_viewer.plot_widget.setYLink(self.output_viewer.plot_widget)
 
+        # Viewer frame
         self.viewer_frame = QFrame()
         self.viewer_frame.setMaximumHeight(250)
         self.viewer_layout = QHBoxLayout()
@@ -110,8 +115,10 @@ class MainApp(QMainWindow):
         self.viewer_layout.addWidget(self.input_viewer)
         self.viewer_layout.addWidget(self.output_viewer)
 
+        # Add viewer to right layout
         self.right_layout.addWidget(self.viewer_frame)
 
+        # Control buttons
         self.load_button = QPushButton("Load WAV File")
         self.play_button = QPushButton("Play")
         self.pause_button = QPushButton("Pause")
@@ -126,6 +133,7 @@ class MainApp(QMainWindow):
         self.forward_button.clicked.connect(self.forward_audio)
         self.backward_button.clicked.connect(self.backward_audio)
 
+        # Control layout
         control_layout = QHBoxLayout()
         control_layout.addWidget(self.load_button)
         control_layout.addWidget(self.play_button)
@@ -169,6 +177,7 @@ class MainApp(QMainWindow):
         self.combo_box.currentIndexChanged.connect(self.change_mode)
         self.left_layout.addWidget(self.combo_box)
 
+        # Main layout
         layout = QHBoxLayout()
         layout.addWidget(self.left_frame)
         layout.addWidget(self.right_frame)
@@ -177,35 +186,71 @@ class MainApp(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
+    def create_sliders(self, slider_num):
+        slider_layouts = []
+        if self.input_viewer.audio_data is not None:
+            min_label, max_label = self.update_frequency_graph()
+        else:
+            min_label, max_label = 0, 0
+
+        if self.current_mode == "Uniform Mode":
+            for i in range(slider_num):
+
+                slider_container = QVBoxLayout()
+
+                slider = QSlider(Qt.Orientation.Vertical)
+                slider.setMinimum(0)
+                slider.setMaximum(10)
+                slider.setValue(5)
+                slider.setTickPosition(QSlider.TicksBothSides)
+                slider.setTickInterval(1)
+
+                if i == 0:
+                    label = QLabel(f" ({min_label:.1f}, {max_label * (i + 1):.1f}) KHz")
+                else:
+                    label = QLabel(f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz")
+
+                label.setAlignment(Qt.AlignLeft)
+
+                slider_container.addWidget(slider)
+                slider_container.addWidget(label)
+
+                slider_layouts.append(slider_container)
+
+        elif self.current_mode == "Musical Mode":
+            pass
+        elif self.current_mode == "Animal Mode":
+            pass
+        elif self.current_mode == "ECG Abnormalities Mode":
+            pass
+        return slider_layouts
+
     def change_mode(self, index):
         self.current_mode = self.combo_box.itemText(index)
         self.update_sliders()
         print(self.current_mode)
 
-    def create_sliders(self, slider_num):
-        sliders = []
-        for i in range(slider_num):
-            slider = QSlider(Qt.Orientation.Vertical)
-            slider.setMinimum(0)
-            slider.setMaximum(100)
-            slider.setValue(50)
-            sliders.append(slider)
-        return sliders
-
     def update_sliders(self):
+
         for i in reversed(range(self.slider_layout.count())):
-            widget_to_remove = self.slider_layout.itemAt(i).widget()
-            self.slider_layout.removeWidget(widget_to_remove)
-            widget_to_remove.setParent(None)
+            widget_to_remove = self.slider_layout.itemAt(i).layout()
+            if widget_to_remove:
+                while widget_to_remove.count():
+                    item = widget_to_remove.takeAt(0)
+                    widget = item.widget()
+                    if widget:
+                        widget.deleteLater()
+                self.slider_layout.removeItem(widget_to_remove)
 
         slider_num = 10 if self.current_mode == 'Uniform Mode' else 4
-        self.sliders = self.create_sliders(slider_num)
-        for i, slider in enumerate(self.sliders):
-            self.slider_layout.addWidget(slider)
+        slider_layouts = self.create_sliders(slider_num)
+        for slider_layout in slider_layouts:
+            self.slider_layout.addLayout(slider_layout)
 
     def load_file(self):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)",options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)",
+                                                   options=options)
         if file_path:
             self.input_viewer.load_waveform(file_path)
             self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
@@ -214,63 +259,67 @@ class MainApp(QMainWindow):
             if hasattr(self.output_viewer, 'temp_wav_file') and self.output_viewer.temp_wav_file and os.path.exists(
                     self.output_viewer.temp_wav_file):
                 self.output_viewer.media_player.stop()
-                self.output_viewer.media_player.setMedia(QMediaContent()) 
+                self.output_viewer.media_player.setMedia(QMediaContent())
                 os.remove(self.output_viewer.temp_wav_file)
-
+        self.update_sliders()
         self.update_frequency_graph()
 
     def plot_output(self, output_data):
         if self.input_viewer.audio_data is not None:
-            duration = (len(output_data) / self.input_viewer.sample_rate)/2
+            duration = (len(output_data) / self.input_viewer.sample_rate) / 2
             x = np.linspace(0, duration, len(output_data))
             self.output_viewer.plot_item.setData(x, output_data)
             self.output_viewer.plot_widget.setXRange(x[0], x[-1])
-            
+
             temp_wav_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            sf.write(temp_wav_file.name, output_data, 2*self.input_viewer.sample_rate)
-            
+            sf.write(temp_wav_file.name, output_data, 2 * self.input_viewer.sample_rate)
+
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(temp_wav_file.name)))
             self.output_viewer.temp_wav_file = temp_wav_file.name
 
     def update_frequency_graph(self):
         if self.input_viewer.audio_data is not None:
-            # Apply FFT
+
             fft_data = np.fft.fft(self.input_viewer.audio_data)
             fft_freq = np.fft.fftfreq(len(fft_data), 1 / self.input_viewer.sample_rate)
-            
+
             positive_freqs = fft_freq[:len(fft_freq) // 2]
             positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
-            
-            # Plot frequency domain (for visualization)
+
+            slider_label_min = positive_freqs[0] / 1000
+            slider_label_max = (positive_freqs[-1] - positive_freqs[0]) / 10000
+
+
             self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
-            
+
             reconstructed_signal = np.fft.ifft(fft_data).real
-            
-            # Normalize the reconstructed signal
+
+
             reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) * 32767)
-            
+
             self.csv_exporter("rec_sig.csv", reconstructed_signal)
-            
+
             self.plot_output(reconstructed_signal)
+            return slider_label_min, slider_label_max
 
-    def get_range_of_frequencies(self, freqs, magnitudes):
-        ROF = []
-        std_dev = np.std(magnitudes)
-        lowest_needed_amp = std_dev / 10
-
-        filtered_freq = [frequency for frequency, amp in zip(freqs, magnitudes) if amp >= lowest_needed_amp]
-
-        diff = np.diff(filtered_freq)
-
-        for i in range(len(diff)):
-            if diff[i] - 50 > 0:
-                ROF.append(filtered_freq[i])
-                ROF.append(filtered_freq[i + 1])
-
-        ROF = ROF[1:-1]
-        ROF = list(zip(ROF[::2], ROF[1::2]))
-        print(ROF)
-        return ROF
+    # def get_range_of_frequencies(self, freqs, magnitudes):
+    #     ROF = []
+    #     std_dev = np.std(magnitudes)
+    #     lowest_needed_amp = std_dev / 10
+    #
+    #     filtered_freq = [frequency for frequency, amp in zip(freqs, magnitudes) if amp >= lowest_needed_amp]
+    #
+    #     diff = np.diff(filtered_freq)
+    #
+    #     for i in range(len(diff)):
+    #         if diff[i] - 50 > 0:
+    #             ROF.append(filtered_freq[i])
+    #             ROF.append(filtered_freq[i + 1])
+    #
+    #     ROF = ROF[1:-1]
+    #     ROF = list(zip(ROF[::2], ROF[1::2]))
+    #     print(ROF)
+    #     return ROF
 
     def csv_exporter(self, file_name, input_file):
 
