@@ -240,7 +240,7 @@ class MainApp(QMainWindow):
             
             positive_freqs = fft_freq[:len(fft_freq) // 2]
             positive_magnitudes = np.abs(fft_data[:len(fft_data) // 2])
-            
+            self.get_range_of_frequencies(positive_freqs,positive_magnitudes)
             # Plot frequency domain (for visualization)
             self.freq_plot_item.setData(positive_freqs, positive_magnitudes)
             
