@@ -1,8 +1,8 @@
 import csv
 import tempfile
 import os
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QCheckBox,QComboBox, QFileDialog, \
-    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy,QSpacerItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QRadioButton, QPushButton, QCheckBox,QComboBox, QFileDialog, \
+    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
 import pyqtgraph as pg
@@ -25,6 +25,7 @@ class SignalViewer(QWidget):
         self.audio_data = None
         self.sample_rate = 0
         self.temp_wav_file = None
+        
 
         self.layout.addWidget(self.plot_widget)
         self.setLayout(self.layout)
@@ -86,16 +87,13 @@ class MainApp(QMainWindow):
         self.freq_ranges = []
         self.sliders = []
 
-        with open('index.qss', 'r') as f:
-            self.setStyleSheet(f.read())
-
         # Left side (controls, combo box)
-        # self.left_frame = QFrame()
-        # self.left_frame.setMaximumWidth(400)
-        # self.left_frame.setMinimumWidth(400)
-        # self.left_layout = QVBoxLayout()
-        # self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        # self.left_frame.setLayout(self.left_layout)
+        self.left_frame = QFrame()
+        self.left_frame.setMaximumWidth(400)
+        self.left_frame.setMinimumWidth(400)
+        self.left_layout = QVBoxLayout()
+        self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.left_frame.setLayout(self.left_layout)
 
         # Right side (viewer, sliders, etc.)
         self.right_frame = QFrame()
@@ -128,6 +126,8 @@ class MainApp(QMainWindow):
         self.rewind_button = QPushButton("Rewind")
         self.forward_button = QPushButton("Forward")
         self.backward_button = QPushButton("Backward")
+        self.linear_scale_button = QRadioButton("Linear")
+        self.audiogram_scale_button = QRadioButton("Audiogram")
 
         self.load_button.clicked.connect(self.load_file)
         self.play_button.clicked.connect(self.play_audio)
@@ -135,38 +135,24 @@ class MainApp(QMainWindow):
         self.rewind_button.clicked.connect(self.rewind_audio)
         self.forward_button.clicked.connect(self.forward_audio)
         self.backward_button.clicked.connect(self.backward_audio)
+        self.linear_scale_button.toggled.connect(self.update_frequency_graph)
+        self.audiogram_scale_button.toggled.connect(self.update_frequency_graph)      
 
         # Control layout
-        dummy_H=QHBoxLayout()
-        control_frame_left = QFrame()
-        dummy_H.addWidget(control_frame_left)
-        control_frame_left.setObjectName("control_frame")
-        control_frame_left.setMaximumHeight(70)
-        control_frame_left.setMinimumHeight(70)
-        control_frame_left.setMaximumWidth(750)
+        control_layout = QHBoxLayout()
+        control_layout.addWidget(self.load_button)
+        control_layout.addWidget(self.play_button)
+        control_layout.addWidget(self.pause_button)
+        control_layout.addWidget(self.rewind_button)
+        control_layout.addWidget(self.forward_button)
+        control_layout.addWidget(self.backward_button)
+        control_layout.addWidget(self.linear_scale_button)
+        control_layout.addWidget(self.audiogram_scale_button)
 
-        control_layout_left = QHBoxLayout()
-        # control_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        control_frame_left.setLayout(control_layout_left)
-        control_layout_left.addWidget(self.load_button)
-        control_layout_left.addWidget(self.play_button)
-        control_layout_left.addWidget(self.pause_button)
-        control_layout_left.addWidget(self.rewind_button)
-        control_layout_left.addWidget(self.forward_button)
-        control_layout_left.addWidget(self.backward_button)
+        self.right_layout.addLayout(control_layout)
 
-        control_frame_right=QFrame()
-        control_layout_right = QHBoxLayout()
-
-        dummy_H.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
-        
-        control_frame_right.setLayout(control_layout_right)
-        
-        dummy_H.addWidget(control_frame_right)
-
-
-
-        self.right_layout.addLayout(dummy_H)
+        # Ensure one of the radio buttons is selected by default
+        self.linear_scale_button.setChecked(True)
 
         self.freq_frame = QFrame()
         self.freq_frame.setMaximumHeight(250)
@@ -177,6 +163,7 @@ class MainApp(QMainWindow):
         self.freq_plot_item = self.freq_plot_widget.plot(pen=pg.mkPen(color='blue'))
         self.freq_layout.addWidget(self.freq_plot_widget)
         self.right_layout.addWidget(self.freq_frame)
+
 
         self.slider_layout = QHBoxLayout()
         self.right_layout.addLayout(self.slider_layout)
@@ -199,8 +186,7 @@ class MainApp(QMainWindow):
         self.combo_box.addItem('Animal Mode')
         self.combo_box.addItem('ECG Abnormalities Mode')
         self.combo_box.currentIndexChanged.connect(self.change_mode)
-
-        control_layout_right.addWidget(self.combo_box)
+        self.left_layout.addWidget(self.combo_box)
 
 
         # Add checkboxes for input and output
@@ -208,12 +194,12 @@ class MainApp(QMainWindow):
         self.output_checkbox = QCheckBox("Play Output")
         self.input_checkbox.setChecked(True)
         self.output_checkbox.setChecked(True)
-        control_layout_right.addWidget(self.input_checkbox)
-        control_layout_right.addWidget(self.output_checkbox)
+        self.left_layout.addWidget(self.input_checkbox)
+        self.left_layout.addWidget(self.output_checkbox)
 
         # Main layout
         layout = QHBoxLayout()
-        # layout.addWidget(self.left_frame)
+        layout.addWidget(self.left_frame)
         layout.addWidget(self.right_frame)
 
         container = QWidget()
@@ -232,7 +218,6 @@ class MainApp(QMainWindow):
             for i in range(slider_num):
 
                 slider_container = QVBoxLayout()
-                slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
                 slider = QSlider(Qt.Orientation.Vertical)
                 slider.setMinimum(0)
@@ -248,9 +233,7 @@ class MainApp(QMainWindow):
 
                 label.setAlignment(Qt.AlignLeft)
 
-                H_layout = QHBoxLayout()
-                H_layout.addWidget(slider)
-                slider_container.addLayout(H_layout)
+                slider_container.addWidget(slider)
                 slider_container.addWidget(label)
 
                 slider_layouts.append(slider_container)
@@ -386,6 +369,57 @@ class MainApp(QMainWindow):
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(temp_wav_file.name)))
             self.output_viewer.temp_wav_file = temp_wav_file.name
 
+    
+
+    ################### old update_frequency_graph ############################
+    # def update_frequency_graph(self, index=None):
+        
+    #     if self.input_viewer.audio_data is not None:
+    #         if not hasattr(self, 'original_magnitudes'):
+    #             self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
+    #             self.fft_freq = np.fft.fftfreq(len(self.ftt_data), 1 / self.input_viewer.sample_rate)
+    #             self.positive_freqs = self.fft_freq[:len(self.fft_freq) // 2]
+    #             self.original_magnitudes = np.abs(self.ftt_data[:len(self.ftt_data) // 2])
+    #             self.modified_magnitudes = self.original_magnitudes.copy()
+    #             self.slider_label_min = self.positive_freqs[0] / 1000
+    #             self.slider_label_max = (self.positive_freqs[-1] - self.positive_freqs[0]) / 10000
+
+
+    #         if index is not None:
+    #             slider = self.sliders[index]
+    #             labels = slider.parent().findChildren(QLabel)
+    #             label_text = labels[index].text()
+    #             freq_range_text = label_text.split('(')[-1].strip(') KHz')
+    #             min_freq, max_freq = map(float, freq_range_text.split(','))
+    #             min_freq *= 1000
+    #             max_freq *= 1000
+
+    #             gain = 1 + (slider.value() - 5) * 0.2
+    #             freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
+    #             self.modified_magnitudes[freq_range] = self.original_magnitudes[freq_range] * gain
+
+    #         # Update the Frequency Plot
+    #         # self.freq_data_global = self.positive_freqs
+    #         # self.magnitudes_global = self.modified_magnitudes
+    #         self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+
+    #         # Reconstruct the Signal in the Time Domain
+    #         half_len = len(self.ftt_data) // 2
+    #         self.ftt_data[:half_len] = self.modified_magnitudes * np.exp(1j * np.angle(self.ftt_data[:half_len]))
+    #         self.ftt_data[half_len + 1:] = np.conj(self.ftt_data[1:half_len][::-1])
+
+    #         # Inverse FFT to Get reconstructed_signal
+    #         reconstructed_signal = np.fft.ifft(self.ftt_data).real # inverse FFT
+    #         reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) * 32767) # The signal is scaled to a 16-bit integer range for audio playback or storage.
+
+    #         # Export and Plot the Reconstructed Signal
+    #         self.csv_exporter("rec_sig.csv", reconstructed_signal)
+    #         self.plot_output(reconstructed_signal)
+    #         # Return Frequency Labels for Sliders
+    #         return self.slider_label_min, self.slider_label_max
+    ################### old update_frequency_graph ############################
+
+    #######يارب######
     def update_frequency_graph(self, index=None):
         if self.input_viewer.audio_data is not None:
             if not hasattr(self, 'original_magnitudes'):
@@ -396,7 +430,6 @@ class MainApp(QMainWindow):
                 self.modified_magnitudes = self.original_magnitudes.copy()
                 self.slider_label_min = self.positive_freqs[0] / 1000
                 self.slider_label_max = (self.positive_freqs[-1] - self.positive_freqs[0]) / 10000
-
 
             if index is not None:
                 slider = self.sliders[index]
@@ -411,18 +444,35 @@ class MainApp(QMainWindow):
                 freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
                 self.modified_magnitudes[freq_range] = self.original_magnitudes[freq_range] * gain
 
-            self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+            if self.audiogram_scale_button.isChecked():
+                # Convert magnitudes to dB
+                magnitudes_db = 20 * np.log10(self.modified_magnitudes)
+                self.freq_plot_item.setData(self.positive_freqs, magnitudes_db)
+                self.freq_plot_widget.getPlotItem().invertY(True)
+                self.freq_plot_widget.setLabel('left', 'H L (dB)')
+            else:
+                self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+                self.freq_plot_widget.getPlotItem().invertY(False)
+                self.freq_plot_widget.setLabel('left', 'Magnitude')
 
+            # Reconstruct the Signal in the Time Domain
             half_len = len(self.ftt_data) // 2
             self.ftt_data[:half_len] = self.modified_magnitudes * np.exp(1j * np.angle(self.ftt_data[:half_len]))
             self.ftt_data[half_len + 1:] = np.conj(self.ftt_data[1:half_len][::-1])
 
+            # Inverse FFT to Get reconstructed_signal
             reconstructed_signal = np.fft.ifft(self.ftt_data).real
             reconstructed_signal = np.int16((reconstructed_signal / np.max(np.abs(reconstructed_signal))) * 32767)
 
+            # Export and Plot the Reconstructed Signal
             self.csv_exporter("rec_sig.csv", reconstructed_signal)
             self.plot_output(reconstructed_signal)
+
+            # Return Frequency Labels for Sliders
             return self.slider_label_min, self.slider_label_max
+    ######يارب#######
+
+
     # def get_range_of_frequencies(self, freqs, magnitudes):
     #     ROF = []
     #     std_dev = np.std(magnitudes)
@@ -441,6 +491,12 @@ class MainApp(QMainWindow):
     #     ROF = list(zip(ROF[::2], ROF[1::2]))
     #     print(ROF)
     #     return ROF
+
+    # def show_linear_scale(self):
+    #     pass
+
+    # def show_audiogram_scale(self):
+    #     pass
 
     def csv_exporter(self, file_name, input_file):
 
