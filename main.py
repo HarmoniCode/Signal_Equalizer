@@ -381,17 +381,35 @@ class MainApp(QMainWindow):
                 min_freq *= 1000
                 max_freq *= 1000
 
-                gain = 1 + (slider.value() - 5) * 0.2
-                freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
-                self.modified_magnitudes[freq_range] = self.original_magnitudes[freq_range] * gain
+                if slider.value() != 0:
+                    gain = 1 + (slider.value() - 5) * 0.2
+                    freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
+                    self.modified_magnitudes[freq_range] = self.original_magnitudes[freq_range] * gain
+                    self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+                    half_len = len(self.ftt_data) // 2
+                    self.ftt_data[:half_len] = self.modified_magnitudes * np.exp(
+                        1j * np.angle(self.ftt_data[:half_len]))
+                    self.ftt_data[half_len + 1:] = np.conj(self.ftt_data[1:half_len][::-1])
 
-            self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
-            half_len = len(self.ftt_data) // 2
-            self.ftt_data[:half_len] = self.modified_magnitudes * np.exp(1j * np.angle(self.ftt_data[:half_len]))
-            self.ftt_data[half_len + 1:] = np.conj(self.ftt_data[1:half_len][::-1])
+                    reconstructed_signal = np.fft.ifft(self.ftt_data).real
+                    self.plot_output(reconstructed_signal)
 
-            reconstructed_signal = np.fft.ifft(self.ftt_data).real
-            self.plot_output(reconstructed_signal)
+                else:
+                    # Use a temporary array to hold modified magnitudes with zero gain
+                    temp_magnitudes = self.modified_magnitudes.copy()
+                    freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
+                    temp_magnitudes[freq_range] = 0  # Apply a zero gain only temporarily
+
+                    # Reconstruct the signal temporarily
+                    temp_ftt_data = self.ftt_data.copy()
+                    half_len = len(temp_ftt_data) // 2
+                    temp_ftt_data[:half_len] = temp_magnitudes * np.exp(1j * np.angle(self.ftt_data[:half_len]))
+                    temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
+
+                    reconstructed_signal = np.fft.ifft(temp_ftt_data).real
+                    self.plot_output(reconstructed_signal)
+
+
             return self.slider_label_min, self.slider_label_max
 
     def reset_viewers(self):
