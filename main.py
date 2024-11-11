@@ -361,7 +361,6 @@ class MainApp(QMainWindow):
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(output_file_path)))
 
     def update_frequency_graph(self, index=None):
-        temp_mag = False
         if self.input_viewer.audio_data is not None:
             if not hasattr(self, 'original_magnitudes') or index is None:
                 self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
@@ -382,35 +381,38 @@ class MainApp(QMainWindow):
                 max_freq *= 1000
 
                 if slider.value() != 0:
-                    temp_mag = False
                     gain = 1 + (slider.value() - 5) * 0.2
                     freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
+
+                    # Adjust modified magnitudes based on gain
                     self.modified_magnitudes[freq_range] = self.original_magnitudes[freq_range] * gain
 
-                    half_len = len(self.ftt_data) // 2
-                    self.ftt_data[:half_len] = self.modified_magnitudes * np.exp(
-                        1j * np.angle(self.ftt_data[:half_len]))
-                    self.ftt_data[half_len + 1:] = np.conj(self.ftt_data[1:half_len][::-1])
+                    # Use original FTT data as base for adjustments
+                    temp_ftt_data = self.ftt_data.copy()
+                    half_len = len(temp_ftt_data) // 2
+                    temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(
+                        1j * np.angle(temp_ftt_data[:half_len]))
+                    temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
 
-                    reconstructed_signal = np.fft.ifft(self.ftt_data).real
+                    # Reconstruct and plot the adjusted signal
+                    reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
 
                 else:
-                    temp_mag = True
-                    self.temp_magnitudes = self.modified_magnitudes.copy()
+                    # Temporarily set magnitudes in the frequency range to zero
                     freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
-                    self.temp_magnitudes[freq_range] = 0
+                    self.modified_magnitudes[freq_range] = 0
 
-                    # Reconstruct the signal temporarily
+                    # Use original FTT data as base for zeroed adjustment
                     temp_ftt_data = self.ftt_data.copy()
                     half_len = len(temp_ftt_data) // 2
-                    temp_ftt_data[:half_len] = self.temp_magnitudes * np.exp(1j * np.angle(self.ftt_data[:half_len]))
+                    temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(1j * np.angle(temp_ftt_data[:half_len]))
                     temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
+
+                    # Reconstruct and plot the temporarily adjusted signal
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
-            if temp_mag:
-                self.freq_plot_item.setData(self.positive_freqs, self.temp_magnitudes)
-            else:
+
                 self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
 
             return self.slider_label_min, self.slider_label_max
