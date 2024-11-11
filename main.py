@@ -2,7 +2,7 @@ import csv
 import tempfile
 import os
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QCheckBox,QComboBox, QFileDialog, \
-    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy
+    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy,QSpacerItem
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
 import pyqtgraph as pg
@@ -86,13 +86,16 @@ class MainApp(QMainWindow):
         self.freq_ranges = []
         self.sliders = []
 
+        with open('index.qss', 'r') as f:
+            self.setStyleSheet(f.read())
+
         # Left side (controls, combo box)
-        self.left_frame = QFrame()
-        self.left_frame.setMaximumWidth(400)
-        self.left_frame.setMinimumWidth(400)
-        self.left_layout = QVBoxLayout()
-        self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.left_frame.setLayout(self.left_layout)
+        # self.left_frame = QFrame()
+        # self.left_frame.setMaximumWidth(400)
+        # self.left_frame.setMinimumWidth(400)
+        # self.left_layout = QVBoxLayout()
+        # self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        # self.left_frame.setLayout(self.left_layout)
 
         # Right side (viewer, sliders, etc.)
         self.right_frame = QFrame()
@@ -134,15 +137,36 @@ class MainApp(QMainWindow):
         self.backward_button.clicked.connect(self.backward_audio)
 
         # Control layout
-        control_layout = QHBoxLayout()
-        control_layout.addWidget(self.load_button)
-        control_layout.addWidget(self.play_button)
-        control_layout.addWidget(self.pause_button)
-        control_layout.addWidget(self.rewind_button)
-        control_layout.addWidget(self.forward_button)
-        control_layout.addWidget(self.backward_button)
+        dummy_H=QHBoxLayout()
+        control_frame_left = QFrame()
+        dummy_H.addWidget(control_frame_left)
+        control_frame_left.setObjectName("control_frame")
+        control_frame_left.setMaximumHeight(70)
+        control_frame_left.setMinimumHeight(70)
+        control_frame_left.setMaximumWidth(750)
 
-        self.right_layout.addLayout(control_layout)
+        control_layout_left = QHBoxLayout()
+        # control_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        control_frame_left.setLayout(control_layout_left)
+        control_layout_left.addWidget(self.load_button)
+        control_layout_left.addWidget(self.play_button)
+        control_layout_left.addWidget(self.pause_button)
+        control_layout_left.addWidget(self.rewind_button)
+        control_layout_left.addWidget(self.forward_button)
+        control_layout_left.addWidget(self.backward_button)
+
+        control_frame_right=QFrame()
+        control_layout_right = QHBoxLayout()
+
+        dummy_H.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        
+        control_frame_right.setLayout(control_layout_right)
+        
+        dummy_H.addWidget(control_frame_right)
+
+
+
+        self.right_layout.addLayout(dummy_H)
 
         self.freq_frame = QFrame()
         self.freq_frame.setMaximumHeight(250)
@@ -175,7 +199,8 @@ class MainApp(QMainWindow):
         self.combo_box.addItem('Animal Mode')
         self.combo_box.addItem('ECG Abnormalities Mode')
         self.combo_box.currentIndexChanged.connect(self.change_mode)
-        self.left_layout.addWidget(self.combo_box)
+
+        control_layout_right.addWidget(self.combo_box)
 
 
         # Add checkboxes for input and output
@@ -183,12 +208,12 @@ class MainApp(QMainWindow):
         self.output_checkbox = QCheckBox("Play Output")
         self.input_checkbox.setChecked(True)
         self.output_checkbox.setChecked(True)
-        self.left_layout.addWidget(self.input_checkbox)
-        self.left_layout.addWidget(self.output_checkbox)
+        control_layout_right.addWidget(self.input_checkbox)
+        control_layout_right.addWidget(self.output_checkbox)
 
         # Main layout
         layout = QHBoxLayout()
-        layout.addWidget(self.left_frame)
+        # layout.addWidget(self.left_frame)
         layout.addWidget(self.right_frame)
 
         container = QWidget()
@@ -207,6 +232,7 @@ class MainApp(QMainWindow):
             for i in range(slider_num):
 
                 slider_container = QVBoxLayout()
+                slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
                 slider = QSlider(Qt.Orientation.Vertical)
                 slider.setMinimum(0)
@@ -222,7 +248,9 @@ class MainApp(QMainWindow):
 
                 label.setAlignment(Qt.AlignLeft)
 
-                slider_container.addWidget(slider)
+                H_layout = QHBoxLayout()
+                H_layout.addWidget(slider)
+                slider_container.addLayout(H_layout)
                 slider_container.addWidget(label)
 
                 slider_layouts.append(slider_container)
