@@ -62,7 +62,9 @@ QComboBox {
 }
 
 QComboBox::down-arrow {
-    image: url("icons/down_arrow.png");
+    image: url(.icons/down_arrow.png);
+    width: 15px;
+    height: 15px;
 }
 
 QComboBox::drop-down {

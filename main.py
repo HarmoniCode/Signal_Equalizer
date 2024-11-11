@@ -4,7 +4,7 @@ import sounddevice as sd
 import csv
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QCheckBox, QComboBox, \
     QFileDialog, \
-    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy,QSpacerItem
+    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy, QSpacerItem
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
 import pyqtgraph as pg
@@ -111,8 +111,6 @@ class MainApp(QMainWindow):
         loadIcon = QtGui.QIcon()
         loadIcon.addPixmap(QtGui.QPixmap("Style/icons/load.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
 
-
-
         # Right side (viewer, sliders, etc.)
         self.right_frame = QFrame()
         self.right_layout = QVBoxLayout()
@@ -170,7 +168,7 @@ class MainApp(QMainWindow):
         self.backward_button.clicked.connect(self.backward_audio)
 
         # Control layout
-        dummy_H=QHBoxLayout()
+        dummy_H = QHBoxLayout()
         control_frame_left = QFrame()
         dummy_H.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
         dummy_H.addWidget(control_frame_left)
@@ -190,7 +188,7 @@ class MainApp(QMainWindow):
         control_layout_left.addWidget(self.forward_button)
         control_layout_left.addWidget(self.rewind_button)
 
-        control_frame_right=QFrame()
+        control_frame_right = QFrame()
         control_frame_right.setObjectName("control_frame_right")
         control_layout_right = QHBoxLayout()
 
@@ -198,10 +196,7 @@ class MainApp(QMainWindow):
 
         dummy_H.addWidget(control_frame_right)
 
-
-
         self.right_layout.addLayout(dummy_H)
-
 
         self.freq_frame = QFrame()
         self.freq_frame.setMaximumHeight(250)
@@ -241,7 +236,6 @@ class MainApp(QMainWindow):
         self.combo_box.currentIndexChanged.connect(self.change_mode)
 
         control_layout_right.addWidget(self.combo_box)
-
 
         # Add checkboxes for input and output
         self.input_checkbox = QCheckBox("Input")
@@ -288,84 +282,7 @@ class MainApp(QMainWindow):
 
                 label.setAlignment(Qt.AlignLeft)
                 label.setObjectName("slider_label")
-
-
-                slider_container.addWidget(slider)
-                slider_container.addWidget(label)
-
-                slider_layouts.append(slider_container)
-                self.sliders.append(slider)
-                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
-        elif self.current_mode == "Musical Mode":
-
-            freq_labels = ["Flute", "Guitar", "Drums", "Violin"]
-            freq_ranges = [(0, 1000), (1000, 2000), (2000, 4000), (4000, 14000)]
-
-            for i in range(slider_num):
-                slider_container = QVBoxLayout()
-
-                slider = QSlider(Qt.Orientation.Vertical)
-                slider.setMinimum(0)
-                slider.setMaximum(10)
-                slider.setValue(5)
-                slider.setTickPosition(QSlider.TicksBothSides)
-                slider.setTickInterval(1)
-
-                label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
-                label.setAlignment(Qt.AlignLeft)
-                label.setObjectName("slider_label")
-
-                slider_container.addWidget(slider)
-                slider_container.addWidget(label)
-
-                slider_layouts.append(slider_container)
-                self.sliders.append(slider)
-                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
-        elif self.current_mode == "Animal Mode":
-
-            freq_labels = ["Cow", "Dog", "Cat", "Bat"]
-            freq_ranges = [0, 500], [500, 1500], [1500, 2500], [6500, 22000]
-
-
-            for i in range(slider_num):
-                slider_container = QVBoxLayout()
-
-                slider = QSlider(Qt.Orientation.Vertical)
-                slider.setMinimum(0)
-                slider.setMaximum(10)
-                slider.setValue(5)
-                slider.setTickPosition(QSlider.TicksBothSides)
-                slider.setTickInterval(1)
-
-                label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
-                label.setAlignment(Qt.AlignLeft)
-                label.setObjectName("slider_label")
-
-                slider_container.addWidget(slider)
-                slider_container.addWidget(label)
-
-                slider_layouts.append(slider_container)
-                self.sliders.append(slider)
-                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
-        elif self.current_mode == "ECG Abnormalities Mode":
-            for i in range(slider_num):
-
-                slider_container = QVBoxLayout()
-
-                slider = QSlider(Qt.Orientation.Vertical)
-                slider.setMinimum(0)
-                slider.setMaximum(10)
-                slider.setValue(5)
-                slider.setTickPosition(QSlider.TicksBothSides)
-                slider.setTickInterval(1)
-
-                if i == 0:
-                    label = QLabel(f" ({min_label:.1f}, {max_label * (i + 1):.1f}) KHz")
-                else:
-                    label = QLabel(f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz")
-
-                label.setAlignment(Qt.AlignLeft)
-                label.setObjectName("slider_label")
+                label.setMaximumWidth(200)
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -390,6 +307,8 @@ class MainApp(QMainWindow):
 
                 label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
                 label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
+                label.setMaximumWidth(140)
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -397,12 +316,13 @@ class MainApp(QMainWindow):
                 slider_layouts.append(slider_container)
                 self.sliders.append(slider)
                 slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
+
+
         elif self.current_mode == "Animal Mode":
 
             freq_labels = ["Whale", "Dog", "Cricket", "Bat"]
             freq_ranges = [0, 500], [500, 1900], [1900, 2900], [8000, 22000]
 
-
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
 
@@ -415,7 +335,7 @@ class MainApp(QMainWindow):
 
                 label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
                 label.setAlignment(Qt.AlignLeft)
-
+                label.setMaximumWidth(140)
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
 
@@ -440,7 +360,7 @@ class MainApp(QMainWindow):
                     label = QLabel(f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz")
 
                 label.setAlignment(Qt.AlignLeft)
-
+                label.setMaximumWidth(140)
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
 
@@ -449,7 +369,6 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(self.update_frequency_graph)
 
         return slider_layouts
-
 
     def change_mode(self, index):
         self.current_mode = self.combo_box.itemText(index)
@@ -476,17 +395,35 @@ class MainApp(QMainWindow):
 
     def load_file(self):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open WAV File", "", "WAV Files (*.wav);;All Files (*)",
-                                                   options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "WAV Files (*.wav);;CSV Files (*.csv);;All Files (*)", options=options)
         if file_path:
             self.reset_viewers()
-            self.input_viewer.load_waveform(file_path)
-            self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
+            if file_path.endswith('.wav'):
+                self.input_viewer.load_waveform(file_path)
+                self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
+            elif file_path.endswith('.csv'):
+                self.load_csv(file_path)
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
             self.update_sliders()
-            self.reset_sliders()
             self.update_frequency_graph()
-            self.plot_output(self.input_viewer.audio_data)
+            self.reset_sliders()
+            if self.input_viewer.audio_data is not None:
+                self.plot_output(self.input_viewer.audio_data)
+            self.update_frequency_graph()
+
+    def load_csv(self, file_path):
+        with open(file_path, 'r') as csv_file:
+            reader = csv.reader(csv_file)
+            next(reader)
+            data = [float(row[0]) for row in reader]
+            self.input_viewer.audio_data = np.array(data)
+            self.input_viewer.sample_rate = 44100
+            duration = len(self.input_viewer.audio_data) / self.input_viewer.sample_rate
+            x = np.linspace(0, duration/2, len(self.input_viewer.audio_data))
+            self.input_viewer.plot_item.setData(x, self.input_viewer.audio_data)
+            self.input_viewer.plot_widget.setXRange(x[0], x[-1])
+            self.input_viewer.plot_widget.addItem(self.input_viewer.needle)
+            self.update_frequency_graph()
 
     def plot_output(self, output_data):
         if self.input_viewer.audio_data is not None:
@@ -551,7 +488,8 @@ class MainApp(QMainWindow):
                     # Use original FTT data as base for zeroed adjustment
                     temp_ftt_data = self.ftt_data.copy()
                     half_len = len(temp_ftt_data) // 2
-                    temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(1j * np.angle(temp_ftt_data[:half_len]))
+                    temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(
+                        1j * np.angle(temp_ftt_data[:half_len]))
                     temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
 
                     # Reconstruct and plot the temporarily adjusted signal
