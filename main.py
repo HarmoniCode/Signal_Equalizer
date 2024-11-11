@@ -4,7 +4,7 @@ import sounddevice as sd
 import csv
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QCheckBox, QComboBox, \
     QFileDialog, \
-    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy
+    QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy,QSpacerItem
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
 import pyqtgraph as pg
@@ -13,6 +13,8 @@ import wave
 import sys
 import soundfile as sf
 from scipy.io import wavfile
+from PyQt5 import QtGui
+from PyQt5 import QtCore
 
 
 class SignalViewer(QWidget):
@@ -88,13 +90,28 @@ class MainApp(QMainWindow):
         self.freq_ranges = []
         self.sliders = []
 
-        # Left side (controls, combo box)
-        self.left_frame = QFrame()
-        self.left_frame.setMaximumWidth(400)
-        self.left_frame.setMinimumWidth(400)
-        self.left_layout = QVBoxLayout()
-        self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.left_frame.setLayout(self.left_layout)
+        with open('Style/index.qss', 'r') as f:
+            self.setStyleSheet(f.read())
+
+        playIcon = QtGui.QIcon()
+        playIcon.addPixmap(QtGui.QPixmap("Style/icons/play.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        pauseIcon = QtGui.QIcon()
+        pauseIcon.addPixmap(QtGui.QPixmap("Style/icons/pause.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        rewindIcon = QtGui.QIcon()
+        rewindIcon.addPixmap(QtGui.QPixmap("Style/icons/rewind.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        forwardIcon = QtGui.QIcon()
+        forwardIcon.addPixmap(QtGui.QPixmap("Style/icons/forward.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        backwardIcon = QtGui.QIcon()
+        backwardIcon.addPixmap(QtGui.QPixmap("Style/icons/backward.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        loadIcon = QtGui.QIcon()
+        loadIcon.addPixmap(QtGui.QPixmap("Style/icons/load.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+
 
         # Right side (viewer, sliders, etc.)
         self.right_frame = QFrame()
@@ -121,12 +138,29 @@ class MainApp(QMainWindow):
         self.right_layout.addWidget(self.viewer_frame)
 
         # Control buttons
-        self.load_button = QPushButton("Load WAV File")
-        self.play_button = QPushButton("Play")
-        self.pause_button = QPushButton("Pause")
-        self.rewind_button = QPushButton("Rewind")
-        self.forward_button = QPushButton("Forward")
-        self.backward_button = QPushButton("Backward")
+        self.load_button = QPushButton()
+        self.load_button.setIcon(loadIcon)
+        self.load_button.setIconSize(QtCore.QSize(24, 24))
+
+        self.play_button = QPushButton()
+        self.play_button.setIcon(playIcon)
+        self.play_button.setIconSize(QtCore.QSize(20, 20))
+
+        self.pause_button = QPushButton()
+        self.pause_button.setIcon(pauseIcon)
+        self.pause_button.setIconSize(QtCore.QSize(20, 20))
+
+        self.rewind_button = QPushButton()
+        self.rewind_button.setIcon(rewindIcon)
+        self.rewind_button.setIconSize(QtCore.QSize(24, 24))
+
+        self.forward_button = QPushButton()
+        self.forward_button.setIcon(forwardIcon)
+        self.forward_button.setIconSize(QtCore.QSize(20, 20))
+
+        self.backward_button = QPushButton()
+        self.backward_button.setIcon(backwardIcon)
+        self.backward_button.setIconSize(QtCore.QSize(20, 20))
 
         self.load_button.clicked.connect(self.load_file)
         self.play_button.clicked.connect(self.play_audio)
@@ -136,15 +170,37 @@ class MainApp(QMainWindow):
         self.backward_button.clicked.connect(self.backward_audio)
 
         # Control layout
-        control_layout = QHBoxLayout()
-        control_layout.addWidget(self.load_button)
-        control_layout.addWidget(self.play_button)
-        control_layout.addWidget(self.pause_button)
-        control_layout.addWidget(self.rewind_button)
-        control_layout.addWidget(self.forward_button)
-        control_layout.addWidget(self.backward_button)
+        dummy_H=QHBoxLayout()
+        control_frame_left = QFrame()
+        dummy_H.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
+        dummy_H.addWidget(control_frame_left)
+        dummy_H.addSpacerItem(QSpacerItem(240, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum))
+        control_frame_left.setObjectName("control_frame_left")
+        control_frame_left.setMaximumHeight(70)
+        control_frame_left.setMinimumHeight(70)
+        control_frame_left.setMaximumWidth(750)
 
-        self.right_layout.addLayout(control_layout)
+        control_layout_left = QHBoxLayout()
+        # control_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        control_frame_left.setLayout(control_layout_left)
+        control_layout_left.addWidget(self.load_button)
+        control_layout_left.addWidget(self.backward_button)
+        control_layout_left.addWidget(self.pause_button)
+        control_layout_left.addWidget(self.play_button)
+        control_layout_left.addWidget(self.forward_button)
+        control_layout_left.addWidget(self.rewind_button)
+
+        control_frame_right=QFrame()
+        control_frame_right.setObjectName("control_frame_right")
+        control_layout_right = QHBoxLayout()
+
+        control_frame_right.setLayout(control_layout_right)
+
+        dummy_H.addWidget(control_frame_right)
+
+
+
+        self.right_layout.addLayout(dummy_H)
 
 
         self.freq_frame = QFrame()
@@ -173,24 +229,31 @@ class MainApp(QMainWindow):
         self.right_layout.addWidget(self.spec_frame)
 
         self.combo_box = QComboBox()
+        self.combo_box.setObjectName("combo_box")
+        self.combo_box.setMinimumWidth(200)
+        self.combo_box.setMaximumWidth(200)
+        self.combo_box.setMinimumHeight(40)
+        self.combo_box.setStyleSheet("QComboBox {font-size: 15px;}")
         self.combo_box.addItem('Uniform Mode')
         self.combo_box.addItem('Musical Mode')
         self.combo_box.addItem('Animal Mode')
         self.combo_box.addItem('ECG Abnormalities Mode')
         self.combo_box.currentIndexChanged.connect(self.change_mode)
-        self.left_layout.addWidget(self.combo_box)
+
+        control_layout_right.addWidget(self.combo_box)
+
 
         # Add checkboxes for input and output
-        self.input_checkbox = QCheckBox("Play Input")
-        self.output_checkbox = QCheckBox("Play Output")
+        self.input_checkbox = QCheckBox("Input")
+        self.output_checkbox = QCheckBox("Output")
         self.input_checkbox.setChecked(True)
         self.output_checkbox.setChecked(True)
-        self.left_layout.addWidget(self.input_checkbox)
-        self.left_layout.addWidget(self.output_checkbox)
+        control_layout_right.addWidget(self.input_checkbox)
+        control_layout_right.addWidget(self.output_checkbox)
 
         # Main layout
         layout = QHBoxLayout()
-        layout.addWidget(self.left_frame)
+        # layout.addWidget(self.left_frame)
         layout.addWidget(self.right_frame)
 
         container = QWidget()
@@ -209,6 +272,7 @@ class MainApp(QMainWindow):
             for i in range(slider_num):
 
                 slider_container = QVBoxLayout()
+                slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
 
                 slider = QSlider(Qt.Orientation.Vertical)
                 slider.setMinimum(0)
@@ -223,6 +287,8 @@ class MainApp(QMainWindow):
                     label = QLabel(f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz")
 
                 label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
+
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -232,8 +298,85 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
         elif self.current_mode == "Musical Mode":
 
-            freq_labels = ["Bass", "Trumpet", "Drums", "Violin"]
-            freq_ranges = [(0, 200), (200, 2000), (2000, 4000), (4000, 14000)]
+            freq_labels = ["Flute", "Guitar", "Drums", "Violin"]
+            freq_ranges = [(0, 1000), (1000, 2000), (2000, 4000), (4000, 14000)]
+
+            for i in range(slider_num):
+                slider_container = QVBoxLayout()
+
+                slider = QSlider(Qt.Orientation.Vertical)
+                slider.setMinimum(0)
+                slider.setMaximum(10)
+                slider.setValue(5)
+                slider.setTickPosition(QSlider.TicksBothSides)
+                slider.setTickInterval(1)
+
+                label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
+                label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
+
+                slider_container.addWidget(slider)
+                slider_container.addWidget(label)
+
+                slider_layouts.append(slider_container)
+                self.sliders.append(slider)
+                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
+        elif self.current_mode == "Animal Mode":
+
+            freq_labels = ["Cow", "Dog", "Cat", "Bat"]
+            freq_ranges = [0, 500], [500, 1500], [1500, 2500], [6500, 22000]
+
+
+            for i in range(slider_num):
+                slider_container = QVBoxLayout()
+
+                slider = QSlider(Qt.Orientation.Vertical)
+                slider.setMinimum(0)
+                slider.setMaximum(10)
+                slider.setValue(5)
+                slider.setTickPosition(QSlider.TicksBothSides)
+                slider.setTickInterval(1)
+
+                label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
+                label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
+
+                slider_container.addWidget(slider)
+                slider_container.addWidget(label)
+
+                slider_layouts.append(slider_container)
+                self.sliders.append(slider)
+                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
+        elif self.current_mode == "ECG Abnormalities Mode":
+            for i in range(slider_num):
+
+                slider_container = QVBoxLayout()
+
+                slider = QSlider(Qt.Orientation.Vertical)
+                slider.setMinimum(0)
+                slider.setMaximum(10)
+                slider.setValue(5)
+                slider.setTickPosition(QSlider.TicksBothSides)
+                slider.setTickInterval(1)
+
+                if i == 0:
+                    label = QLabel(f" ({min_label:.1f}, {max_label * (i + 1):.1f}) KHz")
+                else:
+                    label = QLabel(f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz")
+
+                label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
+
+                slider_container.addWidget(slider)
+                slider_container.addWidget(label)
+
+                slider_layouts.append(slider_container)
+                self.sliders.append(slider)
+                slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
+        elif self.current_mode == "Musical Mode":
+
+            freq_labels = ["Flute", "Guitar", "Drums", "Violin"]
+            freq_ranges = [(0, 1000), (1000, 2000), (2000, 4000), (4000, 14000)]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -258,6 +401,7 @@ class MainApp(QMainWindow):
 
             freq_labels = ["Whale", "Dog", "Cricket", "Bat"]
             freq_ranges = [0, 500], [500, 1900], [1900, 2900], [8000, 22000]
+
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -305,6 +449,7 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(self.update_frequency_graph)
 
         return slider_layouts
+
 
     def change_mode(self, index):
         self.current_mode = self.combo_box.itemText(index)
@@ -443,9 +588,9 @@ class MainApp(QMainWindow):
     def play_audio(self):
         if self.input_checkbox.isChecked():
             self.input_viewer.play_audio()
+            self.input_viewer.timer.start(35)
         if self.output_checkbox.isChecked():
             self.output_viewer.play_audio()
-        self.input_viewer.timer.start(35)
         self.output_viewer.timer.start(35)
 
     def pause_audio(self):
@@ -455,9 +600,9 @@ class MainApp(QMainWindow):
     def rewind_audio(self):
         if self.input_checkbox.isChecked():
             self.input_viewer.rewind_audio()
+            self.input_viewer.timer.start(35)
         if self.output_checkbox.isChecked():
             self.output_viewer.rewind_audio()
-        self.input_viewer.timer.start(35)
         self.output_viewer.timer.start(35)
 
     def forward_audio(self):
