@@ -232,8 +232,8 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
         elif self.current_mode == "Musical Mode":
 
-            freq_labels = ["Flute", "Guitar", "Drums", "Violin"]
-            freq_ranges = [(0, 1000), (1000, 2000), (2000, 4000), (4000, 14000)]
+            freq_labels = ["Bass", "Trumpet", "Drums", "Violin"]
+            freq_ranges = [(0, 200), (200, 2000), (2000, 4000), (4000, 14000)]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -258,7 +258,6 @@ class MainApp(QMainWindow):
 
             freq_labels = ["Whale", "Dog", "Cricket", "Bat"]
             freq_ranges = [0, 500], [500, 1900], [1900, 2900], [8000, 22000]
-            # freq_ranges = [0, 1900], [1900, 2900], [2900, 8000], [8000, 22000]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -362,6 +361,7 @@ class MainApp(QMainWindow):
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(output_file_path)))
 
     def update_frequency_graph(self, index=None):
+        temp_mag = False
         if self.input_viewer.audio_data is not None:
             if not hasattr(self, 'original_magnitudes') or index is None:
                 self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
@@ -382,10 +382,11 @@ class MainApp(QMainWindow):
                 max_freq *= 1000
 
                 if slider.value() != 0:
+                    temp_mag = False
                     gain = 1 + (slider.value() - 5) * 0.2
                     freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
                     self.modified_magnitudes[freq_range] = self.original_magnitudes[freq_range] * gain
-                    self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+
                     half_len = len(self.ftt_data) // 2
                     self.ftt_data[:half_len] = self.modified_magnitudes * np.exp(
                         1j * np.angle(self.ftt_data[:half_len]))
@@ -395,20 +396,22 @@ class MainApp(QMainWindow):
                     self.plot_output(reconstructed_signal)
 
                 else:
-                    # Use a temporary array to hold modified magnitudes with zero gain
-                    temp_magnitudes = self.modified_magnitudes.copy()
+                    temp_mag = True
+                    self.temp_magnitudes = self.modified_magnitudes.copy()
                     freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
-                    temp_magnitudes[freq_range] = 0  # Apply a zero gain only temporarily
+                    self.temp_magnitudes[freq_range] = 0
 
                     # Reconstruct the signal temporarily
                     temp_ftt_data = self.ftt_data.copy()
                     half_len = len(temp_ftt_data) // 2
-                    temp_ftt_data[:half_len] = temp_magnitudes * np.exp(1j * np.angle(self.ftt_data[:half_len]))
+                    temp_ftt_data[:half_len] = self.temp_magnitudes * np.exp(1j * np.angle(self.ftt_data[:half_len]))
                     temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
-
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
-
+            if temp_mag:
+                self.freq_plot_item.setData(self.positive_freqs, self.temp_magnitudes)
+            else:
+                self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
 
             return self.slider_label_min, self.slider_label_max
 
