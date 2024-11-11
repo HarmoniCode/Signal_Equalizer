@@ -288,7 +288,7 @@ class MainApp(QMainWindow):
 
                 label.setAlignment(Qt.AlignLeft)
                 label.setObjectName("slider_label")
-
+                label.setMaximumWidth(200)
                 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -314,6 +314,8 @@ class MainApp(QMainWindow):
                 label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
                 label.setAlignment(Qt.AlignLeft)
                 label.setObjectName("slider_label")
+                label.setMaximumWidth(120)
+
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -340,6 +342,8 @@ class MainApp(QMainWindow):
                 label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
                 label.setAlignment(Qt.AlignLeft)
                 label.setObjectName("slider_label")
+                label.setMaximumWidth(110)
+
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -366,6 +370,8 @@ class MainApp(QMainWindow):
 
                 label.setAlignment(Qt.AlignLeft)
                 label.setObjectName("slider_label")
+                label.setMaximumWidth(110)
+
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -390,6 +396,8 @@ class MainApp(QMainWindow):
 
                 label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
                 label.setAlignment(Qt.AlignLeft)
+                label.setMaximumWidth(110)
+
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
