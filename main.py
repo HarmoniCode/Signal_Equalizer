@@ -1,7 +1,7 @@
 import csv
 import tempfile
 import os
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QComboBox, QFileDialog, \
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QCheckBox,QComboBox, QFileDialog, \
     QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
@@ -176,6 +176,15 @@ class MainApp(QMainWindow):
         self.combo_box.addItem('ECG Abnormalities Mode')
         self.combo_box.currentIndexChanged.connect(self.change_mode)
         self.left_layout.addWidget(self.combo_box)
+
+
+        # Add checkboxes for input and output
+        self.input_checkbox = QCheckBox("Play Input")
+        self.output_checkbox = QCheckBox("Play Output")
+        self.input_checkbox.setChecked(True)
+        self.output_checkbox.setChecked(True)
+        self.left_layout.addWidget(self.input_checkbox)
+        self.left_layout.addWidget(self.output_checkbox)
 
         # Main layout
         layout = QHBoxLayout()
@@ -415,16 +424,24 @@ class MainApp(QMainWindow):
                 writer.writerow([row1])
 
     def play_audio(self):
-        self.input_viewer.play_audio()
-        self.output_viewer.play_audio()
+        if self.input_checkbox.isChecked():
+            self.input_viewer.play_audio()
+        if self.output_checkbox.isChecked():
+            self.output_viewer.play_audio()
+        self.input_viewer.timer.start(35)
+        self.output_viewer.timer.start(35)
 
     def pause_audio(self):
         self.input_viewer.pause_audio()
         self.output_viewer.pause_audio()
 
     def rewind_audio(self):
-        self.input_viewer.rewind_audio()
-        self.output_viewer.rewind_audio()
+        if self.input_checkbox.isChecked():
+            self.input_viewer.rewind_audio()
+        if self.output_checkbox.isChecked():
+            self.output_viewer.rewind_audio()
+        self.input_viewer.timer.start(35)
+        self.output_viewer.timer.start(35)
 
     def forward_audio(self):
         self.input_viewer.forward_audio()
