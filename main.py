@@ -13,6 +13,8 @@ import wave
 import sys
 import soundfile as sf
 from scipy.io import wavfile
+from PyQt5 import QtGui
+from PyQt5 import QtCore
 
 
 class SignalViewer(QWidget):
@@ -88,16 +90,28 @@ class MainApp(QMainWindow):
         self.freq_ranges = []
         self.sliders = []
 
-        with open('index.qss', 'r') as f:
+        with open('Style/index.qss', 'r') as f:
             self.setStyleSheet(f.read())
 
-        # Left side (controls, combo box)
-        # self.left_frame = QFrame()
-        # self.left_frame.setMaximumWidth(400)
-        # self.left_frame.setMinimumWidth(400)
-        # self.left_layout = QVBoxLayout()
-        # self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        # self.left_frame.setLayout(self.left_layout)
+        playIcon = QtGui.QIcon()
+        playIcon.addPixmap(QtGui.QPixmap("Style/icons/play.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        pauseIcon = QtGui.QIcon()
+        pauseIcon.addPixmap(QtGui.QPixmap("Style/icons/pause.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        rewindIcon = QtGui.QIcon()
+        rewindIcon.addPixmap(QtGui.QPixmap("Style/icons/rewind.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        forwardIcon = QtGui.QIcon()
+        forwardIcon.addPixmap(QtGui.QPixmap("Style/icons/forward.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        backwardIcon = QtGui.QIcon()
+        backwardIcon.addPixmap(QtGui.QPixmap("Style/icons/backward.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        loadIcon = QtGui.QIcon()
+        loadIcon.addPixmap(QtGui.QPixmap("Style/icons/load.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+
 
         # Right side (viewer, sliders, etc.)
         self.right_frame = QFrame()
@@ -124,12 +138,29 @@ class MainApp(QMainWindow):
         self.right_layout.addWidget(self.viewer_frame)
 
         # Control buttons
-        self.load_button = QPushButton("Load WAV File")
-        self.play_button = QPushButton("Play")
-        self.pause_button = QPushButton("Pause")
-        self.rewind_button = QPushButton("Rewind")
-        self.forward_button = QPushButton("Forward")
-        self.backward_button = QPushButton("Backward")
+        self.load_button = QPushButton()
+        self.load_button.setIcon(loadIcon)
+        self.load_button.setIconSize(QtCore.QSize(22, 22)) 
+
+        self.play_button = QPushButton()
+        self.play_button.setIcon(playIcon)
+        self.play_button.setIconSize(QtCore.QSize(22, 22)) 
+
+        self.pause_button = QPushButton()
+        self.pause_button.setIcon(pauseIcon)
+        self.pause_button.setIconSize(QtCore.QSize(22, 22)) 
+
+        self.rewind_button = QPushButton()
+        self.rewind_button.setIcon(rewindIcon)
+        self.rewind_button.setIconSize(QtCore.QSize(22, 22)) 
+
+        self.forward_button = QPushButton()
+        self.forward_button.setIcon(forwardIcon)
+        self.forward_button.setIconSize(QtCore.QSize(22, 22)) 
+
+        self.backward_button = QPushButton()
+        self.backward_button.setIcon(backwardIcon)
+        self.backward_button.setIconSize(QtCore.QSize(22, 22))
 
         self.load_button.clicked.connect(self.load_file)
         self.play_button.clicked.connect(self.play_audio)
@@ -141,8 +172,10 @@ class MainApp(QMainWindow):
         # Control layout
         dummy_H=QHBoxLayout()
         control_frame_left = QFrame()
+        dummy_H.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
         dummy_H.addWidget(control_frame_left)
-        control_frame_left.setObjectName("control_frame")
+        dummy_H.addSpacerItem(QSpacerItem(240, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum))
+        control_frame_left.setObjectName("control_frame_left")
         control_frame_left.setMaximumHeight(70)
         control_frame_left.setMinimumHeight(70)
         control_frame_left.setMaximumWidth(750)
@@ -151,16 +184,15 @@ class MainApp(QMainWindow):
         # control_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         control_frame_left.setLayout(control_layout_left)
         control_layout_left.addWidget(self.load_button)
-        control_layout_left.addWidget(self.play_button)
-        control_layout_left.addWidget(self.pause_button)
-        control_layout_left.addWidget(self.rewind_button)
-        control_layout_left.addWidget(self.forward_button)
         control_layout_left.addWidget(self.backward_button)
+        control_layout_left.addWidget(self.pause_button)
+        control_layout_left.addWidget(self.play_button)
+        control_layout_left.addWidget(self.forward_button)
+        control_layout_left.addWidget(self.rewind_button)
 
         control_frame_right=QFrame()
+        control_frame_right.setObjectName("control_frame_right")
         control_layout_right = QHBoxLayout()
-
-        dummy_H.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
         
         control_frame_right.setLayout(control_layout_right)
         
@@ -197,6 +229,11 @@ class MainApp(QMainWindow):
         self.right_layout.addWidget(self.spec_frame)
 
         self.combo_box = QComboBox()
+        self.combo_box.setObjectName("combo_box")
+        self.combo_box.setMinimumWidth(200)
+        self.combo_box.setMaximumWidth(200)
+        self.combo_box.setMinimumHeight(40)
+        self.combo_box.setStyleSheet("QComboBox {font-size: 15px;}")
         self.combo_box.addItem('Uniform Mode')
         self.combo_box.addItem('Musical Mode')
         self.combo_box.addItem('Animal Mode')
@@ -207,18 +244,12 @@ class MainApp(QMainWindow):
 
 
         # Add checkboxes for input and output
-        self.input_checkbox = QCheckBox("Play Input")
-        self.output_checkbox = QCheckBox("Play Output")
+        self.input_checkbox = QCheckBox("Input")
+        self.output_checkbox = QCheckBox("Output")
         self.input_checkbox.setChecked(True)
         self.output_checkbox.setChecked(True)
         control_layout_right.addWidget(self.input_checkbox)
         control_layout_right.addWidget(self.output_checkbox)
-
-        # Add checkboxes for input and output
-        self.input_checkbox = QCheckBox("Play Input")
-        self.output_checkbox = QCheckBox("Play Output")
-        self.input_checkbox.setChecked(True)
-        self.output_checkbox.setChecked(True)
 
         # Main layout
         layout = QHBoxLayout()
@@ -256,6 +287,7 @@ class MainApp(QMainWindow):
                     label = QLabel(f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz")
 
                 label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
 
                 H_layout = QHBoxLayout()
                 H_layout.addWidget(slider)
@@ -548,10 +580,10 @@ class MainApp(QMainWindow):
     def play_audio(self):
         if self.input_checkbox.isChecked():
             self.input_viewer.play_audio()
+            self.input_viewer.timer.start(35)
         if self.output_checkbox.isChecked():
             self.output_viewer.play_audio()
-        self.input_viewer.timer.start(35)
-        self.output_viewer.timer.start(35)
+            self.output_viewer.timer.start(35)
 
     def pause_audio(self):
         self.input_viewer.pause_audio()
@@ -560,10 +592,10 @@ class MainApp(QMainWindow):
     def rewind_audio(self):
         if self.input_checkbox.isChecked():
             self.input_viewer.rewind_audio()
+            self.input_viewer.timer.start(35)
         if self.output_checkbox.isChecked():
             self.output_viewer.rewind_audio()
-        self.input_viewer.timer.start(35)
-        self.output_viewer.timer.start(35)
+            self.output_viewer.timer.start(35)
 
     def forward_audio(self):
         self.input_viewer.forward_audio()
