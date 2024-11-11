@@ -289,9 +289,8 @@ class MainApp(QMainWindow):
                 label.setAlignment(Qt.AlignLeft)
                 label.setObjectName("slider_label")
 
-                H_layout = QHBoxLayout()
-                H_layout.addWidget(slider)
-                slider_container.addLayout(H_layout)
+                
+                slider_container.addWidget(slider)
                 slider_container.addWidget(label)
 
                 slider_layouts.append(slider_container)
