@@ -1,9 +1,7 @@
-import tempfile
-
-import sounddevice as sd
 import csv
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QCheckBox, QComboBox, \
-    QFileDialog, \
+import tempfile
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QRadioButton, QPushButton, QCheckBox, \
+    QComboBox, QFileDialog, \
     QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy, QSpacerItem
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
@@ -11,7 +9,9 @@ import pyqtgraph as pg
 import numpy as np
 import wave
 import sys
-import soundfile as sf
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from scipy.io import wavfile
 from PyQt5 import QtGui
 from PyQt5 import QtCore
@@ -82,6 +82,10 @@ class SignalViewer(QWidget):
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.original_magnitudes = None
+        self.positive_freqs = None
+        self.fft_freq = None
+        self.ftt_data = None
         self.setWindowTitle("Simple Signal Viewer")
         self.setGeometry(100, 100, 800, 600)
 
@@ -159,13 +163,16 @@ class MainApp(QMainWindow):
         self.backward_button = QPushButton()
         self.backward_button.setIcon(backwardIcon)
         self.backward_button.setIconSize(QtCore.QSize(20, 20))
-
+        self.linear_scale_button = QRadioButton("Linear")
+        self.audiogram_scale_button = QRadioButton("Audiogram")
         self.load_button.clicked.connect(self.load_file)
         self.play_button.clicked.connect(self.play_audio)
         self.pause_button.clicked.connect(self.pause_audio)
         self.rewind_button.clicked.connect(self.rewind_audio)
         self.forward_button.clicked.connect(self.forward_audio)
         self.backward_button.clicked.connect(self.backward_audio)
+        self.linear_scale_button.toggled.connect(self.update_frequency_graph)
+        self.audiogram_scale_button.toggled.connect(self.update_frequency_graph)
 
         # Control layout
         dummy_H = QHBoxLayout()
@@ -187,6 +194,8 @@ class MainApp(QMainWindow):
         control_layout_left.addWidget(self.play_button)
         control_layout_left.addWidget(self.forward_button)
         control_layout_left.addWidget(self.rewind_button)
+        control_layout_left.addWidget(self.linear_scale_button)
+        control_layout_left.addWidget(self.audiogram_scale_button)
 
         control_frame_right = QFrame()
         control_frame_right.setObjectName("control_frame_right")
@@ -197,7 +206,7 @@ class MainApp(QMainWindow):
         dummy_H.addWidget(control_frame_right)
 
         self.right_layout.addLayout(dummy_H)
-
+        self.linear_scale_button.setChecked(True)
         self.freq_frame = QFrame()
         self.freq_frame.setMaximumHeight(250)
         self.freq_layout = QHBoxLayout()
@@ -217,10 +226,28 @@ class MainApp(QMainWindow):
         self.spec_frame.setMaximumHeight(250)
         self.spec_layout = QHBoxLayout()
         self.spec_frame.setLayout(self.spec_layout)
-        self.spec_plot_widget_1 = pg.PlotWidget()
-        self.spec_plot_widget_2 = pg.PlotWidget()
-        self.spec_layout.addWidget(self.spec_plot_widget_1)
-        self.spec_layout.addWidget(self.spec_plot_widget_2)
+        self.spec_plot_figure_1 = Figure()
+        self.spec_plot_figure_2 = Figure()
+        self.spec_canvas_1 = FigureCanvas(self.spec_plot_figure_1)
+        self.spec_canvas_2 = FigureCanvas(self.spec_plot_figure_2)
+
+        axis1 = self.spec_plot_figure_1.add_subplot(111)
+        axis1.set_title("Signal Spectrogram")
+        axis1.set_xlabel("Time [s]")
+        axis1.set_ylabel("Frequency [Hz]")
+        cbar1 = self.spec_canvas_1.figure.colorbar(mappable=None, ax=axis1)
+        cbar1.set_label('Intensity [dB]')
+
+        axis2 = self.spec_plot_figure_2.add_subplot(111)
+        axis2.set_title("Reconstructed Signal Spectrogram")
+        axis2.set_xlabel("Time [s]")
+        axis2.set_ylabel("Frequency [Hz]")
+        cbar2 = self.spec_canvas_2.figure.colorbar(mappable=None, ax=axis2)
+        cbar2.set_label('Intensity [dB]')
+        self.spec_layout.addWidget(self.spec_canvas_1)
+        self.spec_layout.addWidget(self.spec_canvas_2)
+        self.right_layout.addWidget(self.spec_frame)
+
         self.right_layout.addWidget(self.spec_frame)
 
         self.combo_box = QComboBox()
@@ -293,7 +320,7 @@ class MainApp(QMainWindow):
         elif self.current_mode == "Musical Mode":
 
             freq_labels = ["Flute", "Guitar", "Drums", "Violin"]
-            freq_ranges = [(0, 1000), (1000, 2000), (2000, 4000), (4000, 14000)]
+            freq_ranges = [(0, 225), (225, 225 * 2), (225 * 2, 225 * 3), (225 * 3, 22000)]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -317,11 +344,10 @@ class MainApp(QMainWindow):
                 self.sliders.append(slider)
                 slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
 
-
         elif self.current_mode == "Animal Mode":
 
             freq_labels = ["Whale", "Dog", "Cricket", "Bat"]
-            freq_ranges = [0, 500], [500, 1900], [1900, 2900], [8000, 22000]
+            freq_ranges = [0, 500], [500, 1900], [1900, 2900], [9000, 12000]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -395,21 +421,31 @@ class MainApp(QMainWindow):
 
     def load_file(self):
         options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "WAV Files (*.wav);;CSV Files (*.csv);;All Files (*)", options=options)
+        file_path, _ = QFileDialog.getOpenFileName(self, "Open File", "",
+                                                   "WAV Files (*.wav);;CSV Files (*.csv);;All Files (*)",
+                                                   options=options)
+
         if file_path:
             self.reset_viewers()
             if file_path.endswith('.wav'):
                 self.input_viewer.load_waveform(file_path)
                 self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
+                self.ftt_data, self.fft_freq, self.positive_freqs, self.original_magnitudes = self.fft()
+                self.plot_spectrogram(self.positive_freqs, self.original_magnitudes, self.spec_canvas_1,
+                                      self.spec_plot_figure_1.gca())
             elif file_path.endswith('.csv'):
                 self.load_csv(file_path)
+
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
             self.update_sliders()
             self.update_frequency_graph()
             self.reset_sliders()
+
             if self.input_viewer.audio_data is not None:
                 self.plot_output(self.input_viewer.audio_data)
+
             self.update_frequency_graph()
+            return self.ftt_data, self.fft_freq, self.positive_freqs, self.original_magnitudes
 
     def load_csv(self, file_path):
         with open(file_path, 'r') as csv_file:
@@ -419,7 +455,7 @@ class MainApp(QMainWindow):
             self.input_viewer.audio_data = np.array(data)
             self.input_viewer.sample_rate = 44100
             duration = len(self.input_viewer.audio_data) / self.input_viewer.sample_rate
-            x = np.linspace(0, duration/2, len(self.input_viewer.audio_data))
+            x = np.linspace(0, duration / 2, len(self.input_viewer.audio_data))
             self.input_viewer.plot_item.setData(x, self.input_viewer.audio_data)
             self.input_viewer.plot_widget.setXRange(x[0], x[-1])
             self.input_viewer.plot_widget.addItem(self.input_viewer.needle)
@@ -442,13 +478,18 @@ class MainApp(QMainWindow):
 
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(output_file_path)))
 
+    def fft(self):
+        self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
+        self.fft_freq = np.fft.fftfreq(len(self.ftt_data), 1 / self.input_viewer.sample_rate)
+        self.positive_freqs = self.fft_freq[:len(self.fft_freq) // 2]
+        self.original_magnitudes = np.abs(self.ftt_data[:len(self.ftt_data) // 2])
+        return self.ftt_data, self.fft_freq, self.positive_freqs, self.original_magnitudes
+
     def update_frequency_graph(self, index=None):
         if self.input_viewer.audio_data is not None:
             if not hasattr(self, 'original_magnitudes') or index is None:
-                self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
-                self.fft_freq = np.fft.fftfreq(len(self.ftt_data), 1 / self.input_viewer.sample_rate)
-                self.positive_freqs = self.fft_freq[:len(self.fft_freq) // 2]
-                self.original_magnitudes = np.abs(self.ftt_data[:len(self.ftt_data) // 2])
+                if not hasattr(self, 'ftt_data') or not hasattr(self, 'fft_freq'):
+                    self.ftt_data, self.fft_freq, self.positive_freqs, self.original_magnitudes = self.fft()
                 self.modified_magnitudes = self.original_magnitudes.copy()
                 self.slider_label_min = self.positive_freqs[0] / 1000
                 self.slider_label_max = (self.positive_freqs[-1] - self.positive_freqs[0]) / 10000
@@ -461,24 +502,33 @@ class MainApp(QMainWindow):
                 min_freq, max_freq = map(float, freq_range_text.split(','))
                 min_freq *= 1000
                 max_freq *= 1000
+                if self.audiogram_scale_button.isChecked():
+                    # Convert magnitudes to dB
+                    magnitudes_db = 20 * np.log10(self.modified_magnitudes)
+                    self.freq_plot_item.setData(self.positive_freqs, magnitudes_db)
+                    self.freq_plot_widget.getPlotItem().invertY(True)
+                    self.freq_plot_widget.setLabel('left', 'H L (dB)')
+                else:
+                    self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+                    self.freq_plot_widget.getPlotItem().invertY(False)
+                    self.freq_plot_widget.setLabel('left', 'Magnitude')
 
                 if slider.value() != 0:
                     gain = 1 + (slider.value() - 5) * 0.2
                     freq_range = np.where((self.positive_freqs >= min_freq) & (self.positive_freqs < max_freq))[0]
 
-                    # Adjust modified magnitudes based on gain
                     self.modified_magnitudes[freq_range] = self.original_magnitudes[freq_range] * gain
 
-                    # Use original FTT data as base for adjustments
                     temp_ftt_data = self.ftt_data.copy()
                     half_len = len(temp_ftt_data) // 2
                     temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(
                         1j * np.angle(temp_ftt_data[:half_len]))
                     temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
 
-                    # Reconstruct and plot the adjusted signal
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
+                    self.plot_spectrogram(self.positive_freqs, self.modified_magnitudes, self.spec_canvas_2,
+                                          self.spec_plot_figure_2.gca())
 
                 else:
                     # Temporarily set magnitudes in the frequency range to zero
@@ -497,8 +547,34 @@ class MainApp(QMainWindow):
                     self.plot_output(reconstructed_signal)
 
             self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
-
             return self.slider_label_min, self.slider_label_max
+
+    def plot_spectrogram(self, frequencies, amplitudes, figure, axis):
+
+        axis.clear()
+        duration = (len(amplitudes) / self.input_viewer.sample_rate) / 2
+        times = np.linspace(0, duration, len(amplitudes))
+        downsample_factor = 1000  # Adjust this factor to reduce size
+        times = times[::downsample_factor]
+        frequencies = frequencies[::downsample_factor]
+        print(times.ndim)
+        print("######")
+        print(frequencies.ndim)
+        if hasattr(axis, 'colorbar'):
+            axis.colorbar.remove()
+            print("removed")
+        times_grid, freqs_grid = np.meshgrid(times, frequencies)
+        if amplitudes.ndim == 1:
+            amplitudes = np.outer(frequencies, np.ones(len(times)))  # Expand to 2D if it's 1D
+            print("1D")
+            amplitudes.ndim
+        pcm = axis.pcolormesh(times_grid, freqs_grid, 10 * np.log10(amplitudes + 1e-10), shading='gouraud')
+        axis.set_ylabel('Frequency [Hz]')
+        axis.set_xlabel('Time [s]')
+        cbar = figure.figure.colorbar(pcm, ax=axis)
+        cbar.set_label('Intensity [dB]')
+
+        figure.draw()
 
     def reset_viewers(self):
         self.input_viewer.plot_item.clear()
