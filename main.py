@@ -245,8 +245,8 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
         elif self.current_mode == "Animal Mode":
 
-            freq_labels = ["Frog", "Bird", "Cricket", "Bat"]
-            freq_ranges = [0, 1100], [1100, 3000], [3000, 6500], [6500, 22000]
+            freq_labels = ["Cow", "Dog", "Cat", "Bat"]
+            freq_ranges = [0, 500], [500, 1500], [1500, 2500], [6500, 22000]
 
 
             for i in range(slider_num):
