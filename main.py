@@ -413,7 +413,7 @@ class MainApp(QMainWindow):
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
 
-                self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+            self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
 
             return self.slider_label_min, self.slider_label_max
 
