@@ -140,27 +140,27 @@ class MainApp(QMainWindow):
         # Control buttons
         self.load_button = QPushButton()
         self.load_button.setIcon(loadIcon)
-        self.load_button.setIconSize(QtCore.QSize(22, 22)) 
+        self.load_button.setIconSize(QtCore.QSize(24, 24)) 
 
         self.play_button = QPushButton()
         self.play_button.setIcon(playIcon)
-        self.play_button.setIconSize(QtCore.QSize(22, 22)) 
+        self.play_button.setIconSize(QtCore.QSize(20, 20)) 
 
         self.pause_button = QPushButton()
         self.pause_button.setIcon(pauseIcon)
-        self.pause_button.setIconSize(QtCore.QSize(22, 22)) 
+        self.pause_button.setIconSize(QtCore.QSize(20, 20)) 
 
         self.rewind_button = QPushButton()
         self.rewind_button.setIcon(rewindIcon)
-        self.rewind_button.setIconSize(QtCore.QSize(22, 22)) 
+        self.rewind_button.setIconSize(QtCore.QSize(24, 24)) 
 
         self.forward_button = QPushButton()
         self.forward_button.setIcon(forwardIcon)
-        self.forward_button.setIconSize(QtCore.QSize(22, 22)) 
+        self.forward_button.setIconSize(QtCore.QSize(20, 20)) 
 
         self.backward_button = QPushButton()
         self.backward_button.setIcon(backwardIcon)
-        self.backward_button.setIconSize(QtCore.QSize(22, 22))
+        self.backward_button.setIconSize(QtCore.QSize(20, 20))
 
         self.load_button.clicked.connect(self.load_file)
         self.play_button.clicked.connect(self.play_audio)
@@ -313,6 +313,7 @@ class MainApp(QMainWindow):
 
                 label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
                 label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -338,6 +339,7 @@ class MainApp(QMainWindow):
 
                 label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
                 label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -363,6 +365,7 @@ class MainApp(QMainWindow):
                     label = QLabel(f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz")
 
                 label.setAlignment(Qt.AlignLeft)
+                label.setObjectName("slider_label")
 
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)

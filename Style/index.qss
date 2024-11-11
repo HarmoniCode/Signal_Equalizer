@@ -115,6 +115,6 @@ QLabel {
     padding: 5px;
 }
 
-QLabel#slider_label{
+QLabel#slider_label {
     border: 1px solid  #316ebf;
 }
