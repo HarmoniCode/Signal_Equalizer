@@ -85,6 +85,7 @@ class SignalViewer(QWidget):
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.audio_data = None
         self.original_magnitudes = None
         self.positive_freqs = None
         self.fft_freq = None
@@ -97,7 +98,6 @@ class MainApp(QMainWindow):
         self.freq_ranges = []
         self.sliders = []
         self.isShown = True
-
 
         with open('Style/index.qss', 'r') as f:
             self.setStyleSheet(f.read())
@@ -120,11 +120,9 @@ class MainApp(QMainWindow):
         loadIcon = QtGui.QIcon()
         loadIcon.addPixmap(QtGui.QPixmap("Style/icons/load.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
 
-        # show/Hide spectrogram
         self.show_hide_button = QPushButton("Hide spectrogram")
         self.show_hide_button.clicked.connect(self.show_hide_spectrogram)
 
-        # Right side (viewer, sliders, etc.)
         self.right_frame = QFrame()
         self.right_layout = QVBoxLayout()
         self.right_frame.setLayout(self.right_layout)
@@ -205,6 +203,7 @@ class MainApp(QMainWindow):
         control_layout_left.addWidget(self.rewind_button)
         control_layout_left.addWidget(self.linear_scale_button)
         control_layout_left.addWidget(self.audiogram_scale_button)
+        control_layout_left.addWidget(self.show_hide_button)
 
         control_frame_right = QFrame()
         control_frame_right.setObjectName("control_frame_right")
@@ -288,9 +287,17 @@ class MainApp(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+
     def show_hide_spectrogram(self):
+        print(self.isShown)
         if not self.isShown:
             self.show_hide_button.setText("Hide spectrogram")
+
+            if self.input_viewer.audio_data is not None and self.audio_data is not None:
+                self.plot_spectrogram(self.input_viewer.audio_data, self.input_viewer.sample_rate, self.spec_canvas_1,
+                                      self.spec_plot_figure_1.gca())
+                self.plot_spectrogram(self.audio_data, self.input_viewer.sample_rate, self.spec_canvas_2,
+                                      self.spec_plot_figure_2.gca())
             self.spec_frame.show()
         else:
             self.show_hide_button.setText("Show spectrogram")
@@ -353,11 +360,11 @@ class MainApp(QMainWindow):
                 label.setObjectName("slider_label")
                 if i == 0:
                     label.setMaximumWidth(127)
-                elif i ==1:
+                elif i == 1:
                     label.setMaximumWidth(210)
-                elif i ==2:
+                elif i == 2:
                     label.setMaximumWidth(147)
-                elif i ==3:
+                elif i == 3:
                     label.setMaximumWidth(165)
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
@@ -453,8 +460,6 @@ class MainApp(QMainWindow):
                 self.input_viewer.load_waveform(file_path)
                 self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
                 self.ftt_data, self.fft_freq, self.positive_freqs, self.original_magnitudes = self.fft()
-                self.plot_spectrogram(self.input_viewer.audio_data, self.input_viewer.sample_rate, self.spec_canvas_1, self.spec_plot_figure_1.gca())
-
             elif file_path.endswith('.csv'):
                 self.load_csv(file_path)
 
@@ -465,7 +470,10 @@ class MainApp(QMainWindow):
 
             if self.input_viewer.audio_data is not None:
                 self.plot_output(self.input_viewer.audio_data)
-
+                if self.isShown:
+                    self.plot_spectrogram(self.input_viewer.audio_data, self.input_viewer.sample_rate,
+                                          self.spec_canvas_1,
+                                          self.spec_plot_figure_1.gca())
             self.update_frequency_graph()
             return self.ftt_data, self.fft_freq, self.positive_freqs, self.original_magnitudes
 
@@ -492,15 +500,16 @@ class MainApp(QMainWindow):
 
             self.output_viewer.media_player.stop()
 
-            audio_data = output_data.astype(np.int16)
+            self.audio_data = output_data.astype(np.int16)
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
                 output_file_path = temp_file.name
-                wavfile.write(output_file_path, self.input_viewer.sample_rate * 2, audio_data)
+                wavfile.write(output_file_path, self.input_viewer.sample_rate * 2, self.audio_data)
 
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(output_file_path)))
-            self.plot_spectrogram(output_data, self.input_viewer.sample_rate, self.spec_canvas_2, self.spec_plot_figure_2.gca())
-
+            if self.isShown:
+                self.plot_spectrogram(self.audio_data, self.input_viewer.sample_rate, self.spec_canvas_2,
+                                      self.spec_plot_figure_2.gca())
     def fft(self):
         self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
         self.fft_freq = np.fft.fftfreq(len(self.ftt_data), 1 / self.input_viewer.sample_rate)
