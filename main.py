@@ -15,6 +15,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from scipy.io import wavfile
 from PyQt5 import QtGui
 from PyQt5 import QtCore
+import soundfile as sf
+from scipy.signal import spectrogram
+from PyQt6.QtCore import QSize
 
 
 class SignalViewer(QWidget):
@@ -93,6 +96,8 @@ class MainApp(QMainWindow):
         self.freq_data = None
         self.freq_ranges = []
         self.sliders = []
+        self.isShown = True
+
 
         with open('Style/index.qss', 'r') as f:
             self.setStyleSheet(f.read())
@@ -114,6 +119,10 @@ class MainApp(QMainWindow):
 
         loadIcon = QtGui.QIcon()
         loadIcon.addPixmap(QtGui.QPixmap("Style/icons/load.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On)
+
+        # show/Hide spectrogram
+        self.show_hide_button = QPushButton("Hide spectrogram")
+        self.show_hide_button.clicked.connect(self.show_hide_spectrogram)
 
         # Right side (viewer, sliders, etc.)
         self.right_frame = QFrame()
@@ -229,25 +238,24 @@ class MainApp(QMainWindow):
         self.spec_plot_figure_1 = Figure()
         self.spec_plot_figure_2 = Figure()
         self.spec_canvas_1 = FigureCanvas(self.spec_plot_figure_1)
+        self.spec_canvas_1.setFixedSize(500, 250)
         self.spec_canvas_2 = FigureCanvas(self.spec_plot_figure_2)
-
+        self.spec_canvas_2.setFixedSize(500, 250)
         axis1 = self.spec_plot_figure_1.add_subplot(111)
         axis1.set_title("Signal Spectrogram")
         axis1.set_xlabel("Time [s]")
-        axis1.set_ylabel("Frequency [Hz]")
+        axis1.set_ylabel("Frequency [Hz] (scaled to '$\pi$')")
         cbar1 = self.spec_canvas_1.figure.colorbar(mappable=None, ax=axis1)
-        cbar1.set_label('Intensity [dB]')
+        cbar1.set_label('Magnitude [dB]')
 
         axis2 = self.spec_plot_figure_2.add_subplot(111)
         axis2.set_title("Reconstructed Signal Spectrogram")
         axis2.set_xlabel("Time [s]")
-        axis2.set_ylabel("Frequency [Hz]")
+        axis2.set_ylabel("Frequency [Hz] (scaled to '$\pi$')")
         cbar2 = self.spec_canvas_2.figure.colorbar(mappable=None, ax=axis2)
-        cbar2.set_label('Intensity [dB]')
+        cbar2.set_label('Magnitude [dB]')
         self.spec_layout.addWidget(self.spec_canvas_1)
         self.spec_layout.addWidget(self.spec_canvas_2)
-        self.right_layout.addWidget(self.spec_frame)
-
         self.right_layout.addWidget(self.spec_frame)
 
         self.combo_box = QComboBox()
@@ -280,6 +288,14 @@ class MainApp(QMainWindow):
         container = QWidget()
         container.setLayout(layout)
         self.setCentralWidget(container)
+    def show_hide_spectrogram(self):
+        if not self.isShown:
+            self.show_hide_button.setText("Hide spectrogram")
+            self.spec_frame.show()
+        else:
+            self.show_hide_button.setText("Show spectrogram")
+            self.spec_frame.hide()
+        self.isShown = not self.isShown
 
     def create_sliders(self, slider_num):
         slider_layouts = []
@@ -319,8 +335,8 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
         elif self.current_mode == "Musical Mode":
 
-            freq_labels = ["Flute", "Guitar", "Drums", "Violin"]
-            freq_ranges = [(0, 225), (225, 225 * 2), (225 * 2, 225 * 3), (225 * 3, 22000)]
+            freq_labels = ["Bass", "Piano and Trumpet", "Cymbals", "Xylophone"]
+            freq_ranges = [(0, 350), (350, 1000), (860, 4000), (4200, 22000)]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -335,8 +351,14 @@ class MainApp(QMainWindow):
                 label = QLabel(f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz")
                 label.setAlignment(Qt.AlignLeft)
                 label.setObjectName("slider_label")
-                label.setMaximumWidth(140)
-
+                if i == 0:
+                    label.setMaximumWidth(127)
+                elif i ==1:
+                    label.setMaximumWidth(210)
+                elif i ==2:
+                    label.setMaximumWidth(147)
+                elif i ==3:
+                    label.setMaximumWidth(165)
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
 
@@ -347,7 +369,7 @@ class MainApp(QMainWindow):
         elif self.current_mode == "Animal Mode":
 
             freq_labels = ["Whale", "Dog", "Cricket", "Bat"]
-            freq_ranges = [0, 500], [500, 1900], [1900, 2900], [9000, 12000]
+            freq_ranges = [0, 500], [500, 1900], [1900, 2900], [2900, 12000]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -431,8 +453,8 @@ class MainApp(QMainWindow):
                 self.input_viewer.load_waveform(file_path)
                 self.input_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(file_path)))
                 self.ftt_data, self.fft_freq, self.positive_freqs, self.original_magnitudes = self.fft()
-                self.plot_spectrogram(self.positive_freqs, self.original_magnitudes, self.spec_canvas_1,
-                                      self.spec_plot_figure_1.gca())
+                self.plot_spectrogram(self.input_viewer.audio_data, self.input_viewer.sample_rate, self.spec_canvas_1, self.spec_plot_figure_1.gca())
+
             elif file_path.endswith('.csv'):
                 self.load_csv(file_path)
 
@@ -477,6 +499,7 @@ class MainApp(QMainWindow):
                 wavfile.write(output_file_path, self.input_viewer.sample_rate * 2, audio_data)
 
             self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(output_file_path)))
+            self.plot_spectrogram(output_data, self.input_viewer.sample_rate, self.spec_canvas_2, self.spec_plot_figure_2.gca())
 
     def fft(self):
         self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
@@ -527,8 +550,6 @@ class MainApp(QMainWindow):
 
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
-                    self.plot_spectrogram(self.positive_freqs, self.modified_magnitudes, self.spec_canvas_2,
-                                          self.spec_plot_figure_2.gca())
 
                 else:
                     # Temporarily set magnitudes in the frequency range to zero
@@ -549,31 +570,10 @@ class MainApp(QMainWindow):
             self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
             return self.slider_label_min, self.slider_label_max
 
-    def plot_spectrogram(self, frequencies, amplitudes, figure, axis):
-
-        axis.clear()
-        duration = (len(amplitudes) / self.input_viewer.sample_rate) / 2
-        times = np.linspace(0, duration, len(amplitudes))
-        downsample_factor = 1000  # Adjust this factor to reduce size
-        times = times[::downsample_factor]
-        frequencies = frequencies[::downsample_factor]
-        print(times.ndim)
-        print("######")
-        print(frequencies.ndim)
-        if hasattr(axis, 'colorbar'):
-            axis.colorbar.remove()
-            print("removed")
-        times_grid, freqs_grid = np.meshgrid(times, frequencies)
-        if amplitudes.ndim == 1:
-            amplitudes = np.outer(frequencies, np.ones(len(times)))  # Expand to 2D if it's 1D
-            print("1D")
-            amplitudes.ndim
-        pcm = axis.pcolormesh(times_grid, freqs_grid, 10 * np.log10(amplitudes + 1e-10), shading='gouraud')
-        axis.set_ylabel('Frequency [Hz]')
-        axis.set_xlabel('Time [s]')
-        cbar = figure.figure.colorbar(pcm, ax=axis)
-        cbar.set_label('Intensity [dB]')
-
+    def plot_spectrogram(self, amplitude, sample_rate, figure, axis):
+        frequencies, times, amplitudes = spectrogram(amplitude, sample_rate)
+        frequencies = frequencies * np.pi / np.max(frequencies)
+        axis.pcolormesh(times, frequencies, 10 * np.log10(amplitudes + 1e-10), shading='gouraud')
         figure.draw()
 
     def reset_viewers(self):
