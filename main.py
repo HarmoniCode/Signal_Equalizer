@@ -64,10 +64,6 @@ class SignalViewer(QWidget):
                 self.plot_widget.addItem(self.needle)
             else:
                 self.plot_item.setData([], [])  
-        if self.cine_mode:
-            self.current_position = 0
-            self.plot_widget.setXRange(0, 5)
-            self.play_audio()
 
     def play_audio(self):
         self.media_player.play()
@@ -78,7 +74,7 @@ class SignalViewer(QWidget):
             self.plot_item.setData([], [])  
         else:
             duration = len(self.audio_data) / self.sample_rate
-            x = np.linspace(0, duration, len(self.audio_data))
+            x = np.linspace(0, duration/2, len(self.audio_data))
             self.plot_item.setData(x, self.audio_data)
             self.plot_widget.setXRange(x[0], x[-1])
             self.plot_widget.addItem(self.needle)
@@ -150,7 +146,7 @@ class MainApp(QMainWindow):
         self.fft_freq = None
         self.ftt_data = None
         self.setWindowTitle("Simple Signal Viewer")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(50, 50, 600, 1000)
 
         self.current_mode = "Uniform Mode"
         self.freq_data = None
@@ -666,7 +662,7 @@ class MainApp(QMainWindow):
             self.input_viewer.audio_data = np.array(data)
             self.input_viewer.sample_rate = 44100
             duration = len(self.input_viewer.audio_data) / self.input_viewer.sample_rate
-            x = np.linspace(0, duration / 2, len(self.input_viewer.audio_data))
+            x = np.linspace(0, duration/2 , len(self.input_viewer.audio_data))
             self.input_viewer.plot_item.setData(x, self.input_viewer.audio_data)
             self.input_viewer.plot_widget.setXRange(x[0], x[-1])
             self.input_viewer.plot_widget.addItem(self.input_viewer.needle)
@@ -684,8 +680,8 @@ class MainApp(QMainWindow):
             self.output_viewer.plot_item.setData([], []) 
         else:
             self.output_viewer.cine_mode = False
-            duration = (len(output_data) / self.input_viewer.sample_rate) / 2
-            x = np.linspace(0, duration, len(output_data))
+            duration = (len(output_data) / self.input_viewer.sample_rate) 
+            x = np.linspace(0, duration/2, len(output_data))
             self.output_viewer.plot_item.setData(x, output_data)
             self.output_viewer.plot_widget.setXRange(x[0], x[-1])
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
