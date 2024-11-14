@@ -88,18 +88,18 @@ class SignalViewer(QWidget):
                 self.needle.setPos(position)
 
     def update_cine_mode(self, position):
-        window_size = 5  
+        window_size = 3 
         start_time = max(0, position - window_size)
         end_time = position
-        start_index = int(start_time * self.sample_rate)
-        end_index = int(end_time * self.sample_rate)
-        x = np.linspace(start_time, end_time, end_index - start_index)
+        start_index = int(start_time * self.sample_rate*2)
+        end_index = int(end_time * self.sample_rate*2)
         y = self.audio_data[start_index:end_index]
+        x = np.linspace(start_time, end_time, end_index - start_index)
         self.plot_item.setData(x, y)
         self.update_x_axis(position)
 
     def update_x_axis(self, position):
-        window_size = 5  
+        window_size = 3 
         start_time = max(0, position - window_size)
         end_time = start_time + window_size
         self.plot_widget.setXRange(start_time, end_time)
