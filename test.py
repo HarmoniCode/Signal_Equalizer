@@ -1,58 +1,30 @@
+import pandas as pd
 import numpy as np
-import csv
-from scipy.io.wavfile import write
+from scipy.io import wavfile
 import tkinter as tk
 from tkinter import filedialog
 
-
-# Function to open a file dialog and select CSV file
-def select_csv_file():
+def convert_wav_to_csv():
+    # Open the file dialog to select a WAV file
     root = tk.Tk()
-    root.withdraw()  # Hide the main window
-    file_path = filedialog.askopenfilename(title="Select CSV File", filetypes=[("CSV Files", "*.csv")])
-    return file_path
+    root.withdraw()  # Hide the Tkinter root window
+    file_path = filedialog.askopenfilename(title="Select WAV File", filetypes=[("WAV Files", "*.wav")])
 
+    if file_path:
+        sample_rate, data = wavfile.read(file_path)
+        duration = len(data) / sample_rate
+        time = np.linspace(0., duration, len(data))
 
-# Function to save the WAV file with a file dialog
-def save_wav_file():
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
-    file_path = filedialog.asksaveasfilename(defaultextension=".wav", filetypes=[("WAV Files", "*.wav")])
-    return file_path
+        # Create a DataFrame with time and amplitude
+        df = pd.DataFrame({'Time': time, 'Amplitude': data})
 
+        # Use file dialog to save the CSV file
+        output_file = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
+        if output_file:
+            df.to_csv(output_file, index=False, header=False)
+            print(f"Converted CSV file saved at: {output_file}")
+        else:
+            print("No output file selected.")
 
-# Function to convert CSV to WAV
-def csv_to_wav():
-    # Select CSV file
-    csv_file = select_csv_file()
-    if not csv_file:
-        print("No CSV file selected.")
-        return
-
-    # Read the CSV into a numpy array (assuming each row is a single sample)
-    audio_data = []
-
-    with open(csv_file, 'r') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            audio_data.append(int(row[0]))  # Assuming the audio data is in the first column
-
-    # Convert the list to a numpy array
-    audio_data = np.array(audio_data, dtype=np.int16)  # Use np.int16 for 16-bit depth
-
-    # Define the sample rate (samples per second)
-    sample_rate = 44100  # Standard sample rate, you can change this if needed
-
-    # Select where to save the WAV file
-    wav_file = save_wav_file()
-    if not wav_file:
-        print("No location selected to save the WAV file.")
-        return
-
-    # Write the numpy array as a WAV file
-    write(wav_file, sample_rate, audio_data)
-    print(f"CSV converted to WAV: {wav_file}")
-
-
-# Run the conversion
-csv_to_wav()
+# Run the function
+convert_wav_to_csv()

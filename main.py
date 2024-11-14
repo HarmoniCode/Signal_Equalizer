@@ -1,5 +1,7 @@
 import csv
 import tempfile
+
+import pandas as pd
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -58,23 +60,23 @@ class SignalViewer(QWidget):
             self.audio_data = np.frombuffer(wave_file.readframes(wave_file.getnframes()), dtype=np.int16)
             if not self.cine_mode:
                 duration = len(self.audio_data) / self.sample_rate
-                x = np.linspace(0, duration/2, len(self.audio_data))
+                x = np.linspace(0, duration / 2, len(self.audio_data))
                 self.plot_item.setData(x, self.audio_data)
                 self.plot_widget.setXRange(x[0], x[-1])
                 self.plot_widget.addItem(self.needle)
             else:
-                self.plot_item.setData([], [])  
+                self.plot_item.setData([], [])
 
     def play_audio(self):
         self.media_player.play()
         self.timer.start(35)
         if self.cine_mode:
             self.current_position = 0
-            self.plot_widget.setXRange(0, 5)  
-            self.plot_item.setData([], [])  
+            self.plot_widget.setXRange(0, 5)
+            self.plot_item.setData([], [])
         else:
             duration = len(self.audio_data) / self.sample_rate
-            x = np.linspace(0, duration/2, len(self.audio_data))
+            x = np.linspace(0, duration / 2, len(self.audio_data))
             self.plot_item.setData(x, self.audio_data)
             self.plot_widget.setXRange(x[0], x[-1])
             self.plot_widget.addItem(self.needle)
@@ -116,7 +118,7 @@ class SignalViewer(QWidget):
 
     def forward_audio(self):
         current_position = self.media_player.position()
-        new_position = current_position + 200 
+        new_position = current_position + 200
         self.media_player.setPosition(new_position)
 
         if self.cine_mode:
@@ -127,7 +129,7 @@ class SignalViewer(QWidget):
 
     def backward_audio(self):
         current_position = self.media_player.position()
-        new_position = max(0, current_position - 200) 
+        new_position = max(0, current_position - 200)
         self.media_player.setPosition(new_position)
 
         if self.cine_mode:
@@ -136,10 +138,10 @@ class SignalViewer(QWidget):
         else:
             self.needle.setPos(new_position / 1000.0)
 
-
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.isCSV = False
         self.audio_data = None
         self.original_magnitudes = None
         self.positive_freqs = None
@@ -198,8 +200,6 @@ class MainApp(QMainWindow):
             QtGui.QIcon.Mode.Normal,
             QtGui.QIcon.State.On,
         )
-
-        
 
         self.show_hide_button = QPushButton("Hide spectrogram")
         self.show_hide_button.setObjectName("show_hide_button")
@@ -281,7 +281,7 @@ class MainApp(QMainWindow):
         control_layout_left.addWidget(self.linear_scale_button)
         control_layout_left.addWidget(self.audiogram_scale_button)
         control_layout_left.addWidget(self.show_hide_button)
-        
+
         # Add radio buttons for Normal Mode and Cine Mode
         self.normal_mode_button = QRadioButton("Normal Plot")
         self.cine_mode_button = QRadioButton("Cine Plot")
@@ -294,8 +294,6 @@ class MainApp(QMainWindow):
         # Add radio buttons to the control layout
         control_layout_left.addWidget(self.normal_mode_button)
         control_layout_left.addWidget(self.cine_mode_button)
-
-        
 
         control_frame_center = QFrame()
         dummy_H.addSpacerItem(
@@ -403,7 +401,6 @@ class MainApp(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
-
     def change_plot_mode(self):
         if self.normal_mode_button.isChecked():
             self.input_viewer.cine_mode = False
@@ -416,9 +413,8 @@ class MainApp(QMainWindow):
             self.input_viewer.plot_widget.removeItem(self.input_viewer.needle)
             self.output_viewer.plot_widget.removeItem(self.output_viewer.needle)
         print('cine_mode:', self.input_viewer.cine_mode)
-        
+
     def show_hide_spectrogram(self):
-        print(self.isShown)
         if not self.isShown:
             self.show_hide_button.setText("Hide spectrogram")
 
@@ -485,7 +481,7 @@ class MainApp(QMainWindow):
                 )
         elif self.current_mode == "Musical Mode":
 
-            freq_labels = ["Bass", "Piano and Trumpet", "Cymbals", "Xylophone"]
+            freq_labels = ["Trumpet", "Piano and Bass", "Cymbals", "Xylophone"]
             freq_ranges = [(0, 350), (350, 1000), (860, 4000), (4200, 22000)]
 
             for i in range(slider_num):
@@ -523,7 +519,7 @@ class MainApp(QMainWindow):
         elif self.current_mode == "Animal Mode":
 
             freq_labels = ["Whale", "Dog", "Cricket", "Bat"]
-            freq_ranges = [0, 500], [500, 1900], [1900, 2900], [2900, 12000]
+            freq_ranges = [0, 500], [500, 1500], [1500, 4500], [4500, 12000]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -549,8 +545,11 @@ class MainApp(QMainWindow):
                     lambda value, index=i: self.update_frequency_graph(index)
                 )
         elif self.current_mode == "ECG Abnormalities Mode":
-            for i in range(slider_num):
 
+            freq_labels = ["Normal", "T1", "T1", "T1"]
+            freq_ranges = [0, 100], [100, 350], [300, 450], [400, 500]
+
+            for i in range(slider_num):
                 slider_container = QVBoxLayout()
 
                 slider = QSlider(Qt.Orientation.Vertical)
@@ -560,13 +559,9 @@ class MainApp(QMainWindow):
                 slider.setTickPosition(QSlider.TicksBothSides)
                 slider.setTickInterval(1)
 
-                if i == 0:
-                    label = QLabel(f" ({min_label:.1f}, {max_label * (i + 1):.1f}) KHz")
-                else:
-                    label = QLabel(
-                        f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz"
-                    )
-
+                label = QLabel(
+                    f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz"
+                )
                 label.setAlignment(Qt.AlignLeft)
                 label.setMaximumWidth(140)
                 slider_container.addWidget(slider)
@@ -574,8 +569,9 @@ class MainApp(QMainWindow):
 
                 slider_layouts.append(slider_container)
                 self.sliders.append(slider)
-                slider.valueChanged.connect(self.update_frequency_graph)
-
+                slider.valueChanged.connect(
+                    lambda value, index=i: self.update_frequency_graph(index)
+                )
         return slider_layouts
 
     def change_mode(self, index):
@@ -613,19 +609,27 @@ class MainApp(QMainWindow):
 
         if file_path:
             self.reset_viewers()
-            if file_path.endswith(".wav"):
+            if file_path.endswith(".csv"):
+                self.isCSV = True
+                wav_file_path = self.convert_csv_to_wav(file_path)
+                self.input_viewer.load_waveform(wav_file_path)
+                self.input_viewer.media_player.setMedia(
+                    QMediaContent(QUrl.fromLocalFile(wav_file_path))
+                )
+            elif file_path.endswith(".wav"):
+                self.isCSV = False
                 self.input_viewer.load_waveform(file_path)
                 self.input_viewer.media_player.setMedia(
                     QMediaContent(QUrl.fromLocalFile(file_path))
                 )
-                (
-                    self.ftt_data,
-                    self.fft_freq,
-                    self.positive_freqs,
-                    self.original_magnitudes,
-                ) = self.fft()
-            elif file_path.endswith(".csv"):
-                self.load_csv(file_path)
+
+            # Ensure fft is called to initialize original_magnitudes
+            (
+                self.ftt_data,
+                self.fft_freq,
+                self.positive_freqs,
+                self.original_magnitudes,
+            ) = self.fft()
 
             if not self.cine_mode_button.isChecked():
                 self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
@@ -654,22 +658,23 @@ class MainApp(QMainWindow):
                 self.original_magnitudes,
             )
 
-    def load_csv(self, file_path):
-        with open(file_path, "r") as csv_file:
-            reader = csv.reader(csv_file)
-            next(reader)
-            data = [float(row[0]) for row in reader]
-            self.input_viewer.audio_data = np.array(data)
-            self.input_viewer.sample_rate = 44100
-            duration = len(self.input_viewer.audio_data) / self.input_viewer.sample_rate
-            x = np.linspace(0, duration/2 , len(self.input_viewer.audio_data))
-            self.input_viewer.plot_item.setData(x, self.input_viewer.audio_data)
-            self.input_viewer.plot_widget.setXRange(x[0], x[-1])
-            self.input_viewer.plot_widget.addItem(self.input_viewer.needle)
-            self.fft() 
-            self.update_frequency_graph()
+    def convert_csv_to_wav(self, file_path, sample_rate=44100):
+        data = pd.read_csv(file_path, header=None)
 
-    
+        # Check if the CSV file has two columns
+        if data.shape[1] == 2:
+            # Select only the second column
+            samples = data.iloc[:, 1].values
+        else:
+            samples = data.values.flatten()
+
+        samples = samples / np.max(np.abs(samples)) * 32767
+        samples = samples.astype(np.int16)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+            wav_file = temp_file.name
+        wavfile.write(wav_file, sample_rate, samples)
+        return wav_file
 
     def plot_output(self, output_data):
         self.output_viewer.audio_data = output_data
@@ -677,11 +682,11 @@ class MainApp(QMainWindow):
 
         if self.cine_mode_button.isChecked():
             self.output_viewer.cine_mode = True
-            self.output_viewer.plot_item.setData([], []) 
+            self.output_viewer.plot_item.setData([], [])
         else:
             self.output_viewer.cine_mode = False
-            duration = (len(output_data) / self.input_viewer.sample_rate) 
-            x = np.linspace(0, duration/2, len(output_data))
+            duration = (len(output_data) / self.input_viewer.sample_rate)
+            x = np.linspace(0, duration / 2, len(output_data))
             self.output_viewer.plot_item.setData(x, output_data)
             self.output_viewer.plot_widget.setXRange(x[0], x[-1])
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
@@ -714,7 +719,6 @@ class MainApp(QMainWindow):
         )
         self.positive_freqs = self.fft_freq[: len(self.fft_freq) // 2]
         self.original_magnitudes = np.abs(self.ftt_data[: len(self.ftt_data) // 2])
-        self.modified_magnitudes = self.original_magnitudes.copy() 
         return (
             self.ftt_data,
             self.fft_freq,
@@ -734,9 +738,7 @@ class MainApp(QMainWindow):
                     ) = self.fft()
                 self.modified_magnitudes = self.original_magnitudes.copy()
                 self.slider_label_min = self.positive_freqs[0] / 1000
-                self.slider_label_max = (
-                    self.positive_freqs[-1] - self.positive_freqs[0]
-                ) / 10000
+                self.slider_label_max = (self.positive_freqs[-1] - self.positive_freqs[0]) / 10000
 
             if index is not None:
                 slider = self.sliders[index]
@@ -747,7 +749,6 @@ class MainApp(QMainWindow):
                 min_freq *= 1000
                 max_freq *= 1000
                 if self.audiogram_scale_button.isChecked():
-                    # Convert magnitudes to dB
                     magnitudes_db = 20 * np.log10(self.modified_magnitudes)
                     self.freq_plot_item.setData(self.positive_freqs, magnitudes_db)
                     self.freq_plot_widget.getPlotItem().invertY(True)
@@ -760,14 +761,14 @@ class MainApp(QMainWindow):
                     self.freq_plot_widget.setLabel("left", "Magnitude")
 
                 if slider.value() != 0:
-                    gain = 1 + (slider.value() - 5) * 0.2
+                    gain = 1 + (slider.value() - 5) * 0.5
                     freq_range = np.where(
                         (self.positive_freqs >= min_freq)
                         & (self.positive_freqs < max_freq)
                     )[0]
 
                     self.modified_magnitudes[freq_range] = (
-                        self.original_magnitudes[freq_range] * gain
+                            self.original_magnitudes[freq_range] * gain
                     )
 
                     temp_ftt_data = self.ftt_data.copy()
@@ -775,7 +776,7 @@ class MainApp(QMainWindow):
                     temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(
                         1j * np.angle(temp_ftt_data[:half_len])
                     )
-                    temp_ftt_data[half_len + 1 :] = np.conj(
+                    temp_ftt_data[half_len + 1:] = np.conj(
                         temp_ftt_data[1:half_len][::-1]
                     )
 
@@ -783,7 +784,7 @@ class MainApp(QMainWindow):
                     self.plot_output(reconstructed_signal)
 
                 else:
-                    # Temporarily set magnitudes in the frequency range to zero
+
                     freq_range = np.where(
                         (self.positive_freqs >= min_freq)
                         & (self.positive_freqs < max_freq)
@@ -796,15 +797,28 @@ class MainApp(QMainWindow):
                     temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(
                         1j * np.angle(temp_ftt_data[:half_len])
                     )
-                    temp_ftt_data[half_len + 1 :] = np.conj(
+                    temp_ftt_data[half_len + 1:] = np.conj(
                         temp_ftt_data[1:half_len][::-1]
                     )
-
-                    # Reconstruct and plot the temporarily adjusted signal
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
 
-            self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+            print(self.isCSV)
+            if self.isCSV:
+                if self.current_mode == "Uniform Mode":
+                    plot_freq = 2500
+                else:
+                    plot_freq = 500
+                mask = (self.positive_freqs <= plot_freq)
+                masked_pos_freq = self.positive_freqs[mask]
+                masked_mod_mag = self.modified_magnitudes[mask]
+                self.slider_label_min = masked_pos_freq[0] / 1000
+                self.slider_label_max = (masked_pos_freq[-1] - masked_pos_freq[0]) / 10000
+                self.freq_plot_item.setData(masked_pos_freq, masked_mod_mag)
+
+            else:
+                self.freq_plot_item.setData(self.positive_freqs, self.modified_magnitudes)
+
             return self.slider_label_min, self.slider_label_max
 
     def plot_spectrogram(self, amplitude, sample_rate, figure, axis):
