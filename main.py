@@ -546,8 +546,11 @@ class MainApp(QMainWindow):
                     lambda value, index=i: self.update_frequency_graph(index)
                 )
         elif self.current_mode == "ECG Abnormalities Mode":
-            for i in range(slider_num):
 
+            freq_labels = ["Normal", "T1", "T1", "T1"]
+            freq_ranges = [0, 500], [500, 1500], [1500, 2000], [2000, 2500]
+
+            for i in range(slider_num):
                 slider_container = QVBoxLayout()
 
                 slider = QSlider(Qt.Orientation.Vertical)
@@ -557,13 +560,9 @@ class MainApp(QMainWindow):
                 slider.setTickPosition(QSlider.TicksBothSides)
                 slider.setTickInterval(1)
 
-                if i == 0:
-                    label = QLabel(f" ({min_label:.1f}, {max_label * (i + 1):.1f}) KHz")
-                else:
-                    label = QLabel(
-                        f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz"
-                    )
-
+                label = QLabel(
+                    f"{freq_labels[i]} ({freq_ranges[i][0] / 1000:.1f}, {freq_ranges[i][1] / 1000:.1f}) KHz"
+                )
                 label.setAlignment(Qt.AlignLeft)
                 label.setMaximumWidth(140)
                 slider_container.addWidget(slider)
@@ -571,8 +570,9 @@ class MainApp(QMainWindow):
 
                 slider_layouts.append(slider_container)
                 self.sliders.append(slider)
-                slider.valueChanged.connect(self.update_frequency_graph)
-
+                slider.valueChanged.connect(
+                    lambda value, index=i: self.update_frequency_graph(index)
+                )
         return slider_layouts
 
     def change_mode(self, index):
@@ -612,22 +612,25 @@ class MainApp(QMainWindow):
             self.reset_viewers()
             if file_path.endswith(".csv"):
                 self.isCSV = True
-                self.input_viewer.load_waveform(self.convert_csv_to_wav(file_path))
+                wav_file_path = self.convert_csv_to_wav(file_path)
+                self.input_viewer.load_waveform(wav_file_path)
                 self.input_viewer.media_player.setMedia(
-                    QMediaContent(QUrl.fromLocalFile(self.convert_csv_to_wav(file_path)))
+                    QMediaContent(QUrl.fromLocalFile(wav_file_path))
                 )
-            if file_path.endswith(".wav"):
+            elif file_path.endswith(".wav"):
                 self.isCSV = False
                 self.input_viewer.load_waveform(file_path)
                 self.input_viewer.media_player.setMedia(
                     QMediaContent(QUrl.fromLocalFile(file_path))
                 )
-                (
-                    self.ftt_data,
-                    self.fft_freq,
-                    self.positive_freqs,
-                    self.original_magnitudes,
-                ) = self.fft()
+
+            # Ensure fft is called to initialize original_magnitudes
+            (
+                self.ftt_data,
+                self.fft_freq,
+                self.positive_freqs,
+                self.original_magnitudes,
+            ) = self.fft()
 
             if not self.cine_mode_button.isChecked():
                 self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
@@ -655,7 +658,6 @@ class MainApp(QMainWindow):
                 self.positive_freqs,
                 self.original_magnitudes,
             )
-
     def convert_csv_to_wav(self, file_path, sample_rate=44100):
 
         data = pd.read_csv(file_path, header=None)
@@ -766,7 +768,7 @@ class MainApp(QMainWindow):
                     self.freq_plot_widget.setLabel("left", "Magnitude")
 
                 if slider.value() != 0:
-                    gain = 1 + (slider.value() - 5) * 0.2
+                    gain = 1 + (slider.value() - 5) * 0.5
                     freq_range = np.where(
                         (self.positive_freqs >= min_freq)
                         & (self.positive_freqs < max_freq)

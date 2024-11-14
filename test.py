@@ -1,58 +1,43 @@
+import pandas as pd
 import numpy as np
-import csv
-from scipy.io.wavfile import write
-import tkinter as tk
-from tkinter import filedialog
+from tkinter import Tk, filedialog
+from scipy.fft import ifft
 
+def csv_ifft_to_time_domain():
+    # Hide Tkinter root window
+    Tk().withdraw()
 
-# Function to open a file dialog and select CSV file
-def select_csv_file():
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
-    file_path = filedialog.askopenfilename(title="Select CSV File", filetypes=[("CSV Files", "*.csv")])
-    return file_path
-
-
-# Function to save the WAV file with a file dialog
-def save_wav_file():
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
-    file_path = filedialog.asksaveasfilename(defaultextension=".wav", filetypes=[("WAV Files", "*.wav")])
-    return file_path
-
-
-# Function to convert CSV to WAV
-def csv_to_wav():
-    # Select CSV file
-    csv_file = select_csv_file()
-    if not csv_file:
-        print("No CSV file selected.")
+    # Open file dialog to select the input CSV file
+    input_file_path = filedialog.askopenfilename(title="Select CSV File", filetypes=[("CSV files", "*.csv")])
+    if not input_file_path:
+        print("No file selected. Exiting...")
         return
 
-    # Read the CSV into a numpy array (assuming each row is a single sample)
-    audio_data = []
+    # Load the CSV data
+    data = pd.read_csv(input_file_path, header=None)  # Load without headers
 
-    with open(csv_file, 'r') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            audio_data.append(int(row[0]))  # Assuming the audio data is in the first column
-
-    # Convert the list to a numpy array
-    audio_data = np.array(audio_data, dtype=np.int16)  # Use np.int16 for 16-bit depth
-
-    # Define the sample rate (samples per second)
-    sample_rate = 44100  # Standard sample rate, you can change this if needed
-
-    # Select where to save the WAV file
-    wav_file = save_wav_file()
-    if not wav_file:
-        print("No location selected to save the WAV file.")
+    # Check if the data has at least two columns
+    if data.shape[1] < 2:
+        print("CSV file must have at least two columns: frequency and amplitude.")
         return
 
-    # Write the numpy array as a WAV file
-    write(wav_file, sample_rate, audio_data)
-    print(f"CSV converted to WAV: {wav_file}")
+    # Extract the amplitude column for IFFT
+    amplitude = data.iloc[:, 1].values  # Assuming the second column is amplitude
 
+    # Perform IFFT on the amplitude data
+    time_domain_signal = np.real(ifft(amplitude))
 
-# Run the conversion
-csv_to_wav()
+    # Convert to DataFrame for saving
+    time_domain_df = pd.DataFrame(time_domain_signal)
+
+    # Open file dialog to save the output CSV file
+    output_file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+    if output_file_path:
+        # Save without headers
+        time_domain_df.to_csv(output_file_path, index=False, header=False)
+        print(f"Time-domain signal saved to {output_file_path}")
+    else:
+        print("No output file selected. Exiting...")
+
+# Run the function
+csv_ifft_to_time_domain()
