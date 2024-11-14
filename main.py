@@ -64,6 +64,10 @@ class SignalViewer(QWidget):
                 self.plot_widget.addItem(self.needle)
             else:
                 self.plot_item.setData([], [])  
+        if self.cine_mode:
+            self.current_position = 0
+            self.plot_widget.setXRange(0, 5)
+            self.play_audio()
 
     def play_audio(self):
         self.media_player.play()
@@ -645,14 +649,14 @@ class MainApp(QMainWindow):
                         self.spec_plot_figure_1.gca(),
                     )
             self.update_frequency_graph()
+            if self.input_viewer.cine_mode:
+                self.play_audio()
             return (
                 self.ftt_data,
                 self.fft_freq,
                 self.positive_freqs,
                 self.original_magnitudes,
             )
-            
-        
 
     def load_csv(self, file_path):
         with open(file_path, "r") as csv_file:
