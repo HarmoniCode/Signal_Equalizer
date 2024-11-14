@@ -70,8 +70,8 @@ class SignalViewer(QWidget):
         self.timer.start(35)
         if self.cine_mode:
             self.current_position = 0
-            self.plot_widget.setXRange(0, 5)  # Set initial range for cine mode
-            self.plot_item.setData([], [])  # Clear the plot
+            self.plot_widget.setXRange(0, 5)  
+            self.plot_item.setData([], [])  
         else:
             duration = len(self.audio_data) / self.sample_rate
             x = np.linspace(0, duration, len(self.audio_data))
@@ -88,7 +88,7 @@ class SignalViewer(QWidget):
                 self.needle.setPos(position)
 
     def update_cine_mode(self, position):
-        window_size = 5  # seconds
+        window_size = 5  
         start_time = max(0, position - window_size)
         end_time = position
         start_index = int(start_time * self.sample_rate)
@@ -99,7 +99,7 @@ class SignalViewer(QWidget):
         self.update_x_axis(position)
 
     def update_x_axis(self, position):
-        window_size = 5  # seconds
+        window_size = 5  
         start_time = max(0, position - window_size / 2)
         end_time = start_time + window_size
         self.plot_widget.setXRange(start_time, end_time)
@@ -677,7 +677,7 @@ class MainApp(QMainWindow):
 
         if self.cine_mode_button.isChecked():
             self.output_viewer.cine_mode = True
-            self.output_viewer.plot_item.setData([], [])  # Clear the plot
+            self.output_viewer.plot_item.setData([], []) 
         else:
             self.output_viewer.cine_mode = False
             duration = (len(output_data) / self.input_viewer.sample_rate) / 2
