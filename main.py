@@ -104,7 +104,7 @@ class SignalViewer(QWidget):
 
     def update_x_axis(self, position):
         window_size = 5  
-        start_time = max(0, position - window_size / 2)
+        start_time = max(0, position - window_size)
         end_time = start_time + window_size
         self.plot_widget.setXRange(start_time, end_time)
 
