@@ -18,6 +18,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QSizePolicy,
     QSpacerItem,
+    QButtonGroup
 )
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
@@ -260,6 +261,9 @@ class MainApp(QMainWindow):
         self.audiogram_scale_button.setStyleSheet(
             "QRadioButton {font-size: 15px;font-weight: bold}"
         )
+
+    
+
         self.load_button.clicked.connect(self.load_file)
         self.play_button.clicked.connect(self.play_audio)
         self.pause_button.clicked.connect(self.pause_audio)
@@ -282,10 +286,20 @@ class MainApp(QMainWindow):
         control_layout_left.addWidget(self.audiogram_scale_button)
         control_layout_left.addWidget(self.show_hide_button)
 
+        # Create button groups
+        self.plot_mode_group = QButtonGroup(self)
+        self.freq_mode_group = QButtonGroup(self)
+
         # Add radio buttons for Normal Mode and Cine Mode
         self.normal_mode_button = QRadioButton("Normal Plot")
         self.cine_mode_button = QRadioButton("Cine Plot")
         self.normal_mode_button.setChecked(True)
+
+        self.plot_mode_group.addButton(self.normal_mode_button)
+        self.plot_mode_group.addButton(self.cine_mode_button)
+
+        self.freq_mode_group.addButton(self.linear_scale_button)
+        self.freq_mode_group.addButton(self.audiogram_scale_button)
 
         # Connect radio buttons to the method
         self.normal_mode_button.toggled.connect(self.change_plot_mode)
@@ -297,11 +311,11 @@ class MainApp(QMainWindow):
 
         control_frame_center = QFrame()
         dummy_H.addSpacerItem(
-            QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+            QSpacerItem(0, 40, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         )
         dummy_H.addWidget(control_frame_center)
         dummy_H.addSpacerItem(
-            QSpacerItem(240, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+            QSpacerItem(240, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         )
         control_frame_center.setObjectName("control_frame_center")
         control_frame_center.setMaximumHeight(70)
@@ -407,11 +421,15 @@ class MainApp(QMainWindow):
             self.output_viewer.cine_mode = False
             self.input_viewer.plot_widget.addItem(self.input_viewer.needle)
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
+            self.input_viewer.play_audio()
+            self.output_viewer.play_audio()
         elif self.cine_mode_button.isChecked():
             self.input_viewer.cine_mode = True
             self.output_viewer.cine_mode = True
             self.input_viewer.plot_widget.removeItem(self.input_viewer.needle)
             self.output_viewer.plot_widget.removeItem(self.output_viewer.needle)
+            self.input_viewer.play_audio()
+            self.output_viewer.play_audio()
         print('cine_mode:', self.input_viewer.cine_mode)
 
     def show_hide_spectrogram(self):
@@ -649,8 +667,7 @@ class MainApp(QMainWindow):
                         self.spec_plot_figure_1.gca(),
                     )
             self.update_frequency_graph()
-            if self.input_viewer.cine_mode:
-                self.play_audio()
+            self.play_audio()
             return (
                 self.ftt_data,
                 self.fft_freq,
