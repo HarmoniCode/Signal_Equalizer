@@ -1,43 +1,30 @@
 import pandas as pd
 import numpy as np
-from tkinter import Tk, filedialog
-from scipy.fft import ifft
+from scipy.io import wavfile
+import tkinter as tk
+from tkinter import filedialog
 
-def csv_ifft_to_time_domain():
-    # Hide Tkinter root window
-    Tk().withdraw()
+def convert_wav_to_csv():
+    # Open the file dialog to select a WAV file
+    root = tk.Tk()
+    root.withdraw()  # Hide the Tkinter root window
+    file_path = filedialog.askopenfilename(title="Select WAV File", filetypes=[("WAV Files", "*.wav")])
 
-    # Open file dialog to select the input CSV file
-    input_file_path = filedialog.askopenfilename(title="Select CSV File", filetypes=[("CSV files", "*.csv")])
-    if not input_file_path:
-        print("No file selected. Exiting...")
-        return
+    if file_path:
+        sample_rate, data = wavfile.read(file_path)
+        duration = len(data) / sample_rate
+        time = np.linspace(0., duration, len(data))
 
-    # Load the CSV data
-    data = pd.read_csv(input_file_path, header=None)  # Load without headers
+        # Create a DataFrame with time and amplitude
+        df = pd.DataFrame({'Time': time, 'Amplitude': data})
 
-    # Check if the data has at least two columns
-    if data.shape[1] < 2:
-        print("CSV file must have at least two columns: frequency and amplitude.")
-        return
-
-    # Extract the amplitude column for IFFT
-    amplitude = data.iloc[:, 1].values  # Assuming the second column is amplitude
-
-    # Perform IFFT on the amplitude data
-    time_domain_signal = np.real(ifft(amplitude))
-
-    # Convert to DataFrame for saving
-    time_domain_df = pd.DataFrame(time_domain_signal)
-
-    # Open file dialog to save the output CSV file
-    output_file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
-    if output_file_path:
-        # Save without headers
-        time_domain_df.to_csv(output_file_path, index=False, header=False)
-        print(f"Time-domain signal saved to {output_file_path}")
-    else:
-        print("No output file selected. Exiting...")
+        # Use file dialog to save the CSV file
+        output_file = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
+        if output_file:
+            df.to_csv(output_file, index=False, header=False)
+            print(f"Converted CSV file saved at: {output_file}")
+        else:
+            print("No output file selected.")
 
 # Run the function
-csv_ifft_to_time_domain()
+convert_wav_to_csv()

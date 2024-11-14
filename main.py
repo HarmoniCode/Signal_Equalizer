@@ -548,7 +548,7 @@ class MainApp(QMainWindow):
         elif self.current_mode == "ECG Abnormalities Mode":
 
             freq_labels = ["Normal", "T1", "T1", "T1"]
-            freq_ranges = [0, 500], [500, 1500], [1500, 2000], [2000, 2500]
+            freq_ranges = [0, 100], [100, 350], [300, 450], [400, 500]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -658,31 +658,24 @@ class MainApp(QMainWindow):
                 self.positive_freqs,
                 self.original_magnitudes,
             )
-    def convert_csv_to_wav(self, file_path, sample_rate=44100):
 
+    def convert_csv_to_wav(self, file_path, sample_rate=44100):
         data = pd.read_csv(file_path, header=None)
-        samples = data.values.flatten()
+
+        # Check if the CSV file has two columns
+        if data.shape[1] == 2:
+            # Select only the second column
+            samples = data.iloc[:, 1].values
+        else:
+            samples = data.values.flatten()
+
         samples = samples / np.max(np.abs(samples)) * 32767
         samples = samples.astype(np.int16)
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
             wav_file = temp_file.name
         wavfile.write(wav_file, sample_rate, samples)
         return wav_file
-
-    # with open(file_path, "r") as csv_file:
-    #     reader = csv.reader(csv_file)
-    #     next(reader)
-    #     data = [float(row[0]) for row in reader]
-    #     self.input_viewer.audio_data = np.array(data)
-    #     self.input_viewer.sample_rate = 44100
-    #     duration = len(self.input_viewer.audio_data) / self.input_viewer.sample_rate
-    #     x = np.linspace(0, duration / 2, len(self.input_viewer.audio_data))
-    #     self.input_viewer.plot_item.setData(x, self.input_viewer.audio_data)
-    #     self.input_viewer.plot_widget.setXRange(x[0], x[-1])
-    #     self.input_viewer.plot_widget.addItem(self.input_viewer.needle)
-    #     self.fft()
-    #     self.update_frequency_graph()
-
     def plot_output(self, output_data):
         self.output_viewer.audio_data = output_data
         self.output_viewer.sample_rate = self.input_viewer.sample_rate
@@ -812,7 +805,11 @@ class MainApp(QMainWindow):
 
             print(self.isCSV)
             if self.isCSV:
-                mask = (self.positive_freqs <= 2500)
+                if self.current_mode == "Uniform Mode":
+                    plot_freq = 2500
+                else :
+                    plot_freq = 500
+                mask = (self.positive_freqs <= plot_freq)
                 masked_pos_freq = self.positive_freqs[mask]
                 masked_mod_mag = self.modified_magnitudes[mask]
                 self.slider_label_min = masked_pos_freq[0] / 1000
