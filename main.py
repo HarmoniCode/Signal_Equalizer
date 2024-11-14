@@ -138,7 +138,6 @@ class SignalViewer(QWidget):
         else:
             self.needle.setPos(new_position / 1000.0)
 
-
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -482,7 +481,7 @@ class MainApp(QMainWindow):
                 )
         elif self.current_mode == "Musical Mode":
 
-            freq_labels = ["Bass", "Piano and Trumpet", "Cymbals", "Xylophone"]
+            freq_labels = ["Trumpet", "Piano and Bass", "Cymbals", "Xylophone"]
             freq_ranges = [(0, 350), (350, 1000), (860, 4000), (4200, 22000)]
 
             for i in range(slider_num):
@@ -676,6 +675,7 @@ class MainApp(QMainWindow):
             wav_file = temp_file.name
         wavfile.write(wav_file, sample_rate, samples)
         return wav_file
+
     def plot_output(self, output_data):
         self.output_viewer.audio_data = output_data
         self.output_viewer.sample_rate = self.input_viewer.sample_rate
@@ -807,7 +807,7 @@ class MainApp(QMainWindow):
             if self.isCSV:
                 if self.current_mode == "Uniform Mode":
                     plot_freq = 2500
-                else :
+                else:
                     plot_freq = 500
                 mask = (self.positive_freqs <= plot_freq)
                 masked_pos_freq = self.positive_freqs[mask]
