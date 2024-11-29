@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QSizePolicy,
     QSpacerItem,
-    QButtonGroup
+    QButtonGroup,
 )
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
@@ -210,6 +210,12 @@ class MainApp(QMainWindow):
         self.right_layout = QVBoxLayout()
         self.right_frame.setLayout(self.right_layout)
 
+        self.left_frame = QFrame()
+        self.left_frame.setMaximumWidth(350)
+        self.left_layout = QVBoxLayout()
+        self.left_frame.setLayout(self.left_layout)
+
+
         # Signal viewers
         self.input_viewer = SignalViewer()
         self.output_viewer = SignalViewer()
@@ -219,15 +225,32 @@ class MainApp(QMainWindow):
         self.input_viewer.plot_widget.setYLink(self.output_viewer.plot_widget)
 
         # Viewer frame
+        self.input_output_frame = QFrame()
+        self.input_output_frame.setObjectName("input_output_frame")
+        self.input_output_layout = QHBoxLayout()
+        self.input_output_layout.setContentsMargins(0, 0, 0, 0)
+        self.input_output_frame.setLayout(self.input_output_layout)
+
+        self.spectrogram_frame = QFrame()
+        self.spectrogram_layout = QVBoxLayout()
+        self.spectrogram_frame.setLayout(self.spectrogram_layout)
+
+        
+
         self.viewer_frame = QFrame()
-        self.viewer_frame.setMaximumHeight(250)
-        self.viewer_layout = QHBoxLayout()
+        self.viewer_frame.setObjectName("viewer_frame")
+        self.viewer_frame.setMaximumHeight(500)
+        self.viewer_layout = QVBoxLayout()
+        self.viewer_layout.setContentsMargins(0, 0, 0, 0)
         self.viewer_frame.setLayout(self.viewer_layout)
         self.viewer_layout.addWidget(self.input_viewer)
         self.viewer_layout.addWidget(self.output_viewer)
 
+        self.input_output_layout.addWidget(self.viewer_frame)
+        self.input_output_layout.addWidget(self.spectrogram_frame)
+
         # Add viewer to right layout
-        self.right_layout.addWidget(self.viewer_frame)
+        self.right_layout.addWidget(self.input_output_frame)
 
         # Control buttons
         self.load_button = QPushButton()
@@ -280,10 +303,9 @@ class MainApp(QMainWindow):
         control_frame_left.setObjectName("control_frame_left")
         dummy_H.addWidget(control_frame_left)
         control_layout_left = QHBoxLayout()
-        control_frame_left.setLayout(control_layout_left)
+        # control_frame_left.setLayout(control_layout_left)
 
-        control_layout_left.addWidget(self.linear_scale_button)
-        control_layout_left.addWidget(self.audiogram_scale_button)
+        
         control_layout_left.addWidget(self.show_hide_button)
 
         # Create button groups
@@ -295,8 +317,8 @@ class MainApp(QMainWindow):
         self.cine_mode_button = QRadioButton("Cine Plot")
         self.normal_mode_button.setChecked(True)
 
-        self.plot_mode_group.addButton(self.normal_mode_button)
-        self.plot_mode_group.addButton(self.cine_mode_button)
+        # self.plot_mode_group.addButton(self.normal_mode_button)
+        # self.plot_mode_group.addButton(self.cine_mode_button)
 
         self.freq_mode_group.addButton(self.linear_scale_button)
         self.freq_mode_group.addButton(self.audiogram_scale_button)
@@ -313,38 +335,67 @@ class MainApp(QMainWindow):
         dummy_H.addSpacerItem(
             QSpacerItem(0, 40, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         )
-        dummy_H.addWidget(control_frame_center)
+        # dummy_H.addWidget(control_frame_center)
         dummy_H.addSpacerItem(
             QSpacerItem(240, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         )
         control_frame_center.setObjectName("control_frame_center")
-        control_frame_center.setMaximumHeight(70)
-        control_frame_center.setMinimumHeight(70)
-        control_frame_center.setMaximumWidth(750)
+        # control_frame_center.setMaximumHeight(70)
+        # control_frame_center.setMinimumHeight(70)
+        # control_frame_center.setMaximumWidth(750)
 
-        control_layout_center = QHBoxLayout()
+        control_layout_center = QVBoxLayout()
+        control_layout_center.setContentsMargins(0, 0, 0, 0)
         # control_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        control_top=QHBoxLayout()
+        control_top.setContentsMargins(0, 0, 0, 0)
+        control_bottom=QHBoxLayout()
+        control_bottom.setContentsMargins(0, 0, 0, 0)
+
+        control_layout_center.addLayout(control_top)
+        control_layout_center.addLayout(control_bottom)
+
+
         control_frame_center.setLayout(control_layout_center)
-        control_layout_center.addWidget(self.load_button)
-        control_layout_center.addWidget(self.backward_button)
-        control_layout_center.addWidget(self.pause_button)
-        control_layout_center.addWidget(self.play_button)
-        control_layout_center.addWidget(self.forward_button)
-        control_layout_center.addWidget(self.rewind_button)
+        control_top.addWidget(self.backward_button)
+        control_top.addWidget(self.play_button)
+        control_top.addWidget(self.forward_button)
+        control_bottom.addWidget(self.load_button)
+        control_bottom.addWidget(self.pause_button)
+        control_bottom.addWidget(self.rewind_button)
 
         control_frame_right = QFrame()
         control_frame_right.setObjectName("control_frame_right")
-        control_layout_right = QHBoxLayout()
+        control_layout_right = QVBoxLayout()
+        control_layout_right.addSpacerItem(
+            QSpacerItem(0, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        )
+
+        control_layout_right.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignTop)
+        control_layout_right.setSpacing(30)
 
         control_frame_right.setLayout(control_layout_right)
 
-        dummy_H.addWidget(control_frame_right)
+        iamge_frame=QFrame()
+        iamge_layout=QHBoxLayout()
+        iamge_frame.setLayout(iamge_layout)
 
-        self.right_layout.addLayout(dummy_H)
+        self.image_label = QLabel()
+        self.image_label.setPixmap(QtGui.QPixmap("Style/icons/image.png"))  
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  
+        self.image_label.setScaledContents(True) 
+        self.image_label.setFixedSize(250, 250) 
+        iamge_layout.addWidget(self.image_label)
+
+        self.left_layout.addWidget(control_frame_right)
+        
+
+        # self.right_layout.addLayout(dummy_H)
         self.linear_scale_button.setChecked(True)
         self.freq_frame = QFrame()
         self.freq_frame.setMaximumHeight(250)
         self.freq_layout = QHBoxLayout()
+        self.freq_layout.setContentsMargins(0, 0, 0, 0)  
         self.freq_frame.setLayout(self.freq_layout)
 
         self.freq_plot_widget = pg.PlotWidget()
@@ -352,21 +403,24 @@ class MainApp(QMainWindow):
         self.freq_layout.addWidget(self.freq_plot_widget)
         self.right_layout.addWidget(self.freq_frame)
 
+        self.slider_frame = QFrame()
+        self.slider_frame.setObjectName("slider_frame")
         self.slider_layout = QHBoxLayout()
-        self.right_layout.addLayout(self.slider_layout)
+        self.slider_frame.setLayout(self.slider_layout)
+        self.right_layout.addWidget(self.slider_frame)
 
         self.update_sliders()
 
         self.spec_frame = QFrame()
-        self.spec_frame.setMaximumHeight(250)
+        # self.spec_frame.setMaximumHeight(10)
         self.spec_layout = QHBoxLayout()
         self.spec_frame.setLayout(self.spec_layout)
         self.spec_plot_figure_1 = Figure()
         self.spec_plot_figure_2 = Figure()
         self.spec_canvas_1 = FigureCanvas(self.spec_plot_figure_1)
-        self.spec_canvas_1.setFixedSize(500, 250)
+        self.spec_canvas_1.setFixedSize(500, 230)
         self.spec_canvas_2 = FigureCanvas(self.spec_plot_figure_2)
-        self.spec_canvas_2.setFixedSize(500, 250)
+        self.spec_canvas_2.setFixedSize(500, 230)
         axis1 = self.spec_plot_figure_1.add_subplot(111)
         axis1.set_title("Signal Spectrogram")
         axis1.set_xlabel("Time [s]")
@@ -380,14 +434,12 @@ class MainApp(QMainWindow):
         axis2.set_ylabel("Frequency [Hz] (scaled to '$\pi$')")
         cbar2 = self.spec_canvas_2.figure.colorbar(mappable=None, ax=axis2)
         cbar2.set_label("Magnitude [dB]")
-        self.spec_layout.addWidget(self.spec_canvas_1)
-        self.spec_layout.addWidget(self.spec_canvas_2)
-        self.right_layout.addWidget(self.spec_frame)
+        self.spectrogram_layout.addWidget(self.spec_canvas_1)
+        self.spectrogram_layout.addWidget(self.spec_canvas_2)
+        # self.right_layout.addWidget(self.spec_frame)
 
         self.combo_box = QComboBox()
         self.combo_box.setObjectName("combo_box")
-        self.combo_box.setMinimumWidth(200)
-        self.combo_box.setMaximumWidth(200)
         self.combo_box.setMinimumHeight(40)
         self.combo_box.setStyleSheet("QComboBox {font-size: 15px;}")
         self.combo_box.addItem("Uniform Mode")
@@ -396,19 +448,41 @@ class MainApp(QMainWindow):
         self.combo_box.addItem("ECG Abnormalities Mode")
         self.combo_box.currentIndexChanged.connect(self.change_mode)
 
+
+        self.input_radio_button = QRadioButton("Input")
+        self.output_radio_button = QRadioButton("Output")
+        self.input_radio_button.setChecked(True)
+        self.output_radio_button.setChecked(True)
+
+        self.io_button_group = QButtonGroup(self)
+        self.io_button_group.addButton(self.input_radio_button)
+        self.io_button_group.addButton(self.output_radio_button)
+        
+
         control_layout_right.addWidget(self.combo_box)
+        control_layout_right.addWidget(self.linear_scale_button)
+        control_layout_right.addWidget(self.audiogram_scale_button)
+        control_layout_right.addWidget(self.normal_mode_button) 
+        control_layout_right.addWidget(self.cine_mode_button) 
+        control_layout_right.addWidget(control_frame_center)
+        control_layout_right.addWidget(self.input_radio_button)
+        control_layout_right.addWidget(self.output_radio_button)
+        control_layout_right.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
+        control_layout_right.addWidget(iamge_frame)
 
         # Add checkboxes for input and output
-        self.input_checkbox = QCheckBox("Input")
-        self.output_checkbox = QCheckBox("Output")
-        self.input_checkbox.setChecked(True)
-        self.output_checkbox.setChecked(True)
-        control_layout_right.addWidget(self.input_checkbox)
-        control_layout_right.addWidget(self.output_checkbox)
+        # self.input_checkbox = QCheckBox("Input")
+        # self.output_checkbox = QCheckBox("Output")
+        # self.input_checkbox.setChecked(True)
+        # self.output_checkbox.setChecked(True)
+        # control_layout_right.addWidget(self.input_checkbox)
+        # control_layout_right.addWidget(self.output_checkbox)
+
+        
 
         # Main layout
         layout = QHBoxLayout()
-        # layout.addWidget(self.left_frame)
+        layout.addWidget(self.left_frame)
         layout.addWidget(self.right_frame)
 
         container = QWidget()
@@ -726,6 +800,7 @@ class MainApp(QMainWindow):
                 self.audio_data,
                 self.input_viewer.sample_rate,
                 self.spec_canvas_2,
+                
                 self.spec_plot_figure_2.gca(),
             )
 
@@ -870,10 +945,10 @@ class MainApp(QMainWindow):
                 writer.writerow([row1])
 
     def play_audio(self):
-        if self.input_checkbox.isChecked():
+        if self.input_radio_button.isChecked():
             self.input_viewer.play_audio()
             self.input_viewer.timer.start(35)
-        if self.output_checkbox.isChecked():
+        if self.output_radio_button.isChecked():
             self.output_viewer.play_audio()
         self.output_viewer.timer.start(35)
 
@@ -882,10 +957,10 @@ class MainApp(QMainWindow):
         self.output_viewer.pause_audio()
 
     def rewind_audio(self):
-        if self.input_checkbox.isChecked():
+        if self.input_radio_button.isChecked():
             self.input_viewer.rewind_audio()
             self.input_viewer.timer.start(35)
-        if self.output_checkbox.isChecked():
+        if self.output_radio_button.isChecked():
             self.output_viewer.rewind_audio()
         self.output_viewer.timer.start(35)
 

@@ -40,14 +40,21 @@ QPushButton:pressed {
 
 
 
-QFrame {
+/* QFrame {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 0px;
+} */
+
+QFrame#input_output_frame {
     border: 1px solid #ccc;
     border-radius: 8px;
     padding: 0px;
 }
 
-QFrame#control_frame_right,#control_frame_left {
+QFrame#control_frame_right,#control_frame_left,#slider_frame {
     border: 1px solid #316ebf;
+    border-radius: 8px;
     padding: 0px;
 }
 
