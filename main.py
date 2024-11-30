@@ -306,7 +306,6 @@ class MainApp(QMainWindow):
         # control_frame_left.setLayout(control_layout_left)
 
         
-        control_layout_left.addWidget(self.show_hide_button)
 
         # Create button groups
         self.plot_mode_group = QButtonGroup(self)
@@ -411,10 +410,10 @@ class MainApp(QMainWindow):
 
         self.update_sliders()
 
-        self.spec_frame = QFrame()
-        # self.spec_frame.setMaximumHeight(10)
-        self.spec_layout = QHBoxLayout()
-        self.spec_frame.setLayout(self.spec_layout)
+        # self.spec_frame = QFrame()
+        # # self.spec_frame.setMaximumHeight(10)
+        # self.spec_layout = QHBoxLayout()
+        # self.spec_frame.setLayout(self.spec_layout)
         self.spec_plot_figure_1 = Figure()
         self.spec_plot_figure_2 = Figure()
         self.spec_canvas_1 = FigureCanvas(self.spec_plot_figure_1)
@@ -467,6 +466,8 @@ class MainApp(QMainWindow):
         control_layout_right.addWidget(control_frame_center)
         control_layout_right.addWidget(self.input_radio_button)
         control_layout_right.addWidget(self.output_radio_button)
+        control_layout_right.addWidget(self.show_hide_button)
+
         control_layout_right.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
         control_layout_right.addWidget(iamge_frame)
 
@@ -523,10 +524,10 @@ class MainApp(QMainWindow):
                     self.spec_canvas_2,
                     self.spec_plot_figure_2.gca(),
                 )
-            self.spec_frame.show()
+            self.spectrogram_frame.show()
         else:
             self.show_hide_button.setText("Show spectrogram")
-            self.spec_frame.hide()
+            self.spectrogram_frame.hide()
         self.isShown = not self.isShown
 
     def create_sliders(self, slider_num):
