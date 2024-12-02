@@ -157,10 +157,10 @@ class MainApp(QMainWindow):
         self.freq_ranges = []
         self.sliders = []
         self.isShown = True
-        self.min_freq_input = QLineEdit()
-        self.min_freq_input.setPlaceholderText("Min Frequency (Hz)")
-        self.max_freq_input = QLineEdit()
-        self.max_freq_input.setPlaceholderText("Max Frequency (Hz)")
+        # self.min_freq_input = QLineEdit()
+        # self.min_freq_input.setPlaceholderText("Min Frequency (Hz)")
+        # self.max_freq_input = QLineEdit()
+        # self.max_freq_input.setPlaceholderText("Max Frequency (Hz)")
 
         with open("Style/index.qss", "r") as f:
             self.setStyleSheet(f.read())
@@ -328,8 +328,8 @@ class MainApp(QMainWindow):
         self.cine_mode_button.toggled.connect(self.change_plot_mode)
 
         # Add radio buttons to the control layout
-        control_layout_left.addWidget(self.normal_mode_button)
-        control_layout_left.addWidget(self.cine_mode_button)
+        # control_layout_left.addWidget(self.normal_mode_button)
+        # control_layout_left.addWidget(self.cine_mode_button)
 
         control_frame_center = QFrame()
         dummy_H.addSpacerItem(
@@ -459,15 +459,15 @@ class MainApp(QMainWindow):
         control_layout_right.addWidget(self.combo_box)
         control_layout_right.addWidget(self.linear_scale_button)
         control_layout_right.addWidget(self.audiogram_scale_button)
-        control_layout_right.addWidget(self.normal_mode_button) 
-        control_layout_right.addWidget(self.cine_mode_button) 
+        # control_layout_right.addWidget(self.normal_mode_button)
+        # control_layout_right.addWidget(self.cine_mode_button)
         control_layout_right.addWidget(control_frame_center)
         control_layout_right.addWidget(self.input_radio_button)
         control_layout_right.addWidget(self.output_radio_button)
         control_layout_right.addWidget(self.show_hide_button)
 
-        control_layout_right.addWidget(self.min_freq_input)
-        control_layout_right.addWidget(self.max_freq_input)
+        # control_layout_right.addWidget(self.min_freq_input)
+        # control_layout_right.addWidget(self.max_freq_input)
         control_layout_right.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
         control_layout_right.addWidget(iamge_frame)
 
@@ -554,10 +554,10 @@ class MainApp(QMainWindow):
                 slider.setTickInterval(1)
 
                 if i == 0:
-                    label = QLabel(f" ({min_label:.1f}, {max_label * (i + 1):.1f}) KHz")
+                    label = QLabel(f" ({min_label:.1f}, {max_label * (i + 1):.1f}) Hz")
                 else:
                     label = QLabel(
-                        f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) KHz"
+                        f" ({max_label * i:.1f}, {max_label * (i + 1):.1f}) Hz"
                     )
 
                 label.setAlignment(Qt.AlignLeft)
@@ -572,44 +572,44 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(
                     lambda value, index=i: self.update_frequency_graph(index)
                 )
-        elif self.current_mode == "Custom Range Mode":
-
-            try:
-                min_freq = float(self.min_freq_input.text())
-                max_freq = float(self.max_freq_input.text())
-                freq_step = (max_freq - min_freq) / slider_num
-
-                for i in range(slider_num):
-                    slider_container = QVBoxLayout()
-                    slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-
-                    slider = QSlider(Qt.Orientation.Vertical)
-                    slider.setMinimum(0)
-                    slider.setMaximum(10)
-                    slider.setValue(5)
-                    slider.setTickPosition(QSlider.TicksBothSides)
-                    slider.setTickInterval(1)
-
-                    freq_range_label = f"({min_freq + i * freq_step:.1f}, {min_freq + (i + 1) * freq_step:.1f}) Hz"
-                    label = QLabel(freq_range_label)
-                    label.setAlignment(Qt.AlignLeft)
-                    label.setObjectName("slider_label")
-                    label.setMaximumWidth(200)
-
-                    slider_container.addWidget(slider)
-                    slider_container.addWidget(label)
-
-                    slider_layouts.append(slider_container)
-                    self.sliders.append(slider)
-                    slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
-
-            except ValueError:
-                # Handle invalid inputs gracefully
-                print("Please enter valid numerical values for frequency range.")
+        # elif self.current_mode == "Custom Range Mode":
+        #
+        #     try:
+        #         min_freq = float(self.min_freq_input.text())
+        #         max_freq = float(self.max_freq_input.text())
+        #         freq_step = (max_freq - min_freq) / slider_num
+        #
+        #         for i in range(slider_num):
+        #             slider_container = QVBoxLayout()
+        #             slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        #
+        #             slider = QSlider(Qt.Orientation.Vertical)
+        #             slider.setMinimum(0)
+        #             slider.setMaximum(10)
+        #             slider.setValue(5)
+        #             slider.setTickPosition(QSlider.TicksBothSides)
+        #             slider.setTickInterval(1)
+        #
+        #             freq_range_label = f"({min_freq + i * freq_step:.1f}, {min_freq + (i + 1) * freq_step:.1f}) Hz"
+        #             label = QLabel(freq_range_label)
+        #             label.setAlignment(Qt.AlignLeft)
+        #             label.setObjectName("slider_label")
+        #             label.setMaximumWidth(200)
+        #
+        #             slider_container.addWidget(slider)
+        #             slider_container.addWidget(label)
+        #
+        #             slider_layouts.append(slider_container)
+        #             self.sliders.append(slider)
+        #             slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
+        #
+        #     except ValueError:
+        #         # Handle invalid inputs gracefully
+        #         print("Please enter valid numerical values for frequency range.")
 
         elif self.current_mode == "Musical Mode":
 
-            freq_labels = ["Trumpet", "Piano and Bass", "Cymbals", "Xylophone"]
+            freq_labels = ["Trumpet", "Piano", "Cymbals", "Xylophone"]
             freq_ranges = [(0, 350), (350, 1000), (860, 4000), (4200, 22000)]
 
             for i in range(slider_num):
@@ -623,14 +623,14 @@ class MainApp(QMainWindow):
                 slider.setTickInterval(1)
 
                 label = QLabel(
-                    f"{freq_labels[i]} ({freq_ranges[i][0]:.1f}, {freq_ranges[i][1]:.1f}) KHz"
+                    f"{freq_labels[i]} ({freq_ranges[i][0]:.1f}, {freq_ranges[i][1]:.1f})"
                 )
                 label.setAlignment(Qt.AlignLeft)
                 label.setObjectName("slider_label")
                 if i == 0:
                     label.setMaximumWidth(127)
                 elif i == 1:
-                    label.setMaximumWidth(210)
+                    label.setMaximumWidth(150)
                 elif i == 2:
                     label.setMaximumWidth(147)
                 elif i == 3:
@@ -646,8 +646,8 @@ class MainApp(QMainWindow):
 
         elif self.current_mode == "Animal Mode":
 
-            freq_labels = ["Whale", "Dog", "Cricket", "Bat"]
-            freq_ranges = [0, 500], [500, 1500], [1500, 4500], [4500, 12000]
+            freq_labels = ["Whale", "Dog", "Cardinal", "Cricket"]
+            freq_ranges = [0, 650], [650, 1500], [1500, 1800], [1800, 12000]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -660,7 +660,7 @@ class MainApp(QMainWindow):
                 slider.setTickInterval(1)
 
                 label = QLabel(
-                    f"{freq_labels[i]} ({freq_ranges[i][0]:.1f}, {freq_ranges[i][1]:.1f}) KHz"
+                    f"{freq_labels[i]} ({freq_ranges[i][0]:.1f}, {freq_ranges[i][1]:.1f})"
                 )
                 label.setAlignment(Qt.AlignLeft)
                 label.setMaximumWidth(140)
@@ -674,8 +674,8 @@ class MainApp(QMainWindow):
                 )
         elif self.current_mode == "ECG Abnormalities Mode":
 
-            freq_labels = ["Normal", "AF", "VT", "VF"]
-            freq_ranges = [0, 100], [100, 350], [300, 450], [400, 500]
+            freq_labels = ["Normal", "AFib", "VT", "VC"]
+            freq_ranges = [0, 22000], [200, 450], [80, 864], [0, 1000]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -688,7 +688,7 @@ class MainApp(QMainWindow):
                 slider.setTickInterval(1)
 
                 label = QLabel(
-                    f"{freq_labels[i]} ({freq_ranges[i][0]:.1f}, {freq_ranges[i][1]:.1f}) KHz"
+                    f"{freq_labels[i]} ({freq_ranges[i][0]:.1f}, {freq_ranges[i][1]:.1f})"
                 )
                 label.setAlignment(Qt.AlignLeft)
                 label.setMaximumWidth(140)
@@ -706,13 +706,13 @@ class MainApp(QMainWindow):
         self.current_mode = self.combo_box.itemText(index)
         self.update_sliders()
         self.reset_sliders()
-        if self.current_mode == "Custom Range Mode":
-            self.min_freq_input.setEnabled(True)
-            self.max_freq_input.setEnabled(True)
-        else:
-            self.min_freq_input.setEnabled(False)
-            self.max_freq_input.setEnabled(False)
-        print(self.current_mode)
+        # if self.current_mode == "Custom Range Mode":
+        #     self.min_freq_input.setEnabled(True)
+        #     self.max_freq_input.setEnabled(True)
+        # # else:
+        # self.min_freq_input.setEnabled(False)
+        # self.max_freq_input.setEnabled(False)
+        # print(self.current_mode)
 
     def update_sliders(self):
 
@@ -878,7 +878,7 @@ class MainApp(QMainWindow):
                 slider = self.sliders[index]
                 labels = slider.parent().findChildren(QLabel)
                 label_text = labels[index].text()
-                freq_range_text = label_text.split("(")[-1].strip(") KHz")
+                freq_range_text = label_text.split("(")[-1].strip(") Hz")
                 min_freq, max_freq = map(float, freq_range_text.split(","))
                 # min_freq *= 1000.0
                 # max_freq *= 1000.0
