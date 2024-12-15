@@ -1,44 +1,58 @@
-import wfdb
-import matplotlib.pyplot as plt
-import csv
-record_name = '105'
-database = 'mitdb'
+import numpy as np
+import soundfile as sf
+from PyQt5.QtWidgets import QApplication, QFileDialog
 
-print(f"Downloading record {record_name} from {database}...")
-wfdb.dl_database(database, dl_dir='./ecg_data', records=[record_name])
 
-record_path = f'./ecg_data/{record_name}'
+def add_white_noise_with_dialog(noise_level=0.1):
+    """
+    Add white noise to an audio file selected via a file dialog and save the result to a location of choice.
 
-record = wfdb.rdrecord(record_path)
+    Parameters:
+    - noise_level (float): The intensity of the noise to be added (default is 0.1).
+    """
+    # Start a Qt application to open a file dialog
+    app = QApplication([])
 
-annotations = wfdb.rdann(record_path, 'atr')
+    # Open a file dialog to choose the input audio file
+    input_file, _ = QFileDialog.getOpenFileName(None, "Select Audio File", "", "Audio Files (*.wav *.flac *.aiff)")
 
-signal = record.p_signal  # ECG signal data
-sampling_frequency = record.fs  # Sampling frequency
-times = [i / sampling_frequency for i in range(len(signal))]  # Time in seconds
-annotation_times = [t / sampling_frequency for t in annotations.sample]  # Annotation times (seconds)
-annotation_labels = annotations.symbol  # Annotation labels
+    if not input_file:
+        print("No input file selected.")
+        return
 
-plt.figure(figsize=(15, 6))
-plt.plot(times, signal[:, 0], label="ECG Signal (Lead 1)", color="blue")
-plt.title("ECG Signal with Annotations")
-plt.xlabel("Time (s)")
-plt.ylabel("Amplitude (mV)")
-plt.grid(True)
+    # Open a file dialog to choose the folder where the noisy audio will be saved
+    output_file, _ = QFileDialog.getSaveFileName(None, "Save Noisy Audio", "", "WAV Files (*.wav)")
 
-plt.legend()
-plt.show()
-print("Annotations:")
-for time, label in zip(annotation_times, annotation_labels):
-    print(f"Time: {time:.2f} s, Label: {label}")
+    if not output_file:
+        print("No output file selected.")
+        return
 
-csv_file_path = './ecg_data/ecg_data.csv'
-with open(csv_file_path, mode='w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(['Time (s)', 'Amplitude (mV)', 'Annotation Time (s)', 'Annotation Label'])
-    for i in range(len(times)):
-        annotation_time = annotation_times[i] if i < len(annotation_times) else ''
-        annotation_label = annotation_labels[i] if i < len(annotation_labels) else ''
-        writer.writerow([times[i], signal[i, 0], annotation_time, annotation_label])
+    # Check if the selected output file has the correct extension
+    if not output_file.endswith(".wav"):
+        output_file += ".wav"  # Ensure the file ends with .wav extension
 
-print(f"Data saved to {csv_file_path}")
+    # Read the input audio file
+    audio_data, sample_rate = sf.read(input_file)
+
+    # Normalize the audio data to float32 for processing
+    audio_data = audio_data.astype(np.float32)
+
+    # Generate white noise with the same shape as the audio data
+    noise = np.random.normal(0, 1, audio_data.shape)
+
+    # Scale the noise by the noise level (you can adjust this to control the intensity)
+    noise = noise * noise_level * np.max(np.abs(audio_data))
+
+    # Add the noise to the original audio data
+    noisy_audio = audio_data + noise
+
+    # Clip the values to be in the valid range of audio data
+    noisy_audio = np.clip(noisy_audio, -1, 1)
+
+    # Save the noisy audio to the selected output file
+    sf.write(output_file, noisy_audio, sample_rate)
+
+    print(f"White noise added and saved to {output_file}")
+
+
+add_white_noise_with_dialog(0.05/2.5)

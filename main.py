@@ -2,6 +2,7 @@ import csv
 import tempfile
 
 import pandas as pd
+from PyQt5.QtGui import QPen
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -9,7 +10,6 @@ from PyQt5.QtWidgets import (
     QWidget,
     QRadioButton,
     QPushButton,
-    QCheckBox,
     QComboBox,
     QFileDialog,
     QHBoxLayout,
@@ -18,28 +18,131 @@ from PyQt5.QtWidgets import (
     QLabel,
     QSizePolicy,
     QSpacerItem,
-    QButtonGroup, QLineEdit,
+    QButtonGroup, QLineEdit, QGraphicsScene, QGraphicsLineItem,
 )
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtCore import QUrl, QTimer, Qt
 import pyqtgraph as pg
 import numpy as np
-import wave
 import sys
-import matplotlib.pyplot as plt
+
+from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from scipy.io import wavfile
 from PyQt5 import QtGui
 from PyQt5 import QtCore
 import soundfile as sf
-from scipy.signal import spectrogram
-from PyQt6.QtCore import QSize
+from scipy.signal import spectrogram, wiener
+
+
+class SignalProcessingWithWienerFilter:
+    def __init__(self, plot_widget, audio_data, sample_rate, main_app):
+        """ Initialize signal processing with Wiener filter. """
+        self.plot_widget = plot_widget
+        self.audio_data = audio_data
+        self.sample_rate = sample_rate
+        self.main_app = main_app
+        duration = len(self.audio_data) / self.sample_rate
+
+        # Initialize attributes for the Wiener filter
+        self.noise_data = None
+        self.noise_power = 0
+
+        # Initialize start and end indices for the lines
+        self.start_index = 0
+        self.end_index = duration if audio_data.any() else 100
+
+        # Create thin red pen for line indicators
+        self.pen = QPen(Qt.red)
+        self.pen.setWidthF(duration / 1000)  # Thin line width
+
+        print("Class initialized with red lines")
+        self.start_line = self.create_line(self.start_index)
+        self.end_line = self.create_line(self.end_index)
+
+        # Add lines to the plot widget directly (via ViewBox)
+        self.view_box = self.plot_widget.getPlotItem().getViewBox()
+        self.view_box.addItem(self.start_line)
+        self.view_box.addItem(self.end_line)
+
+        # Enable interaction by making the lines movable
+        self.start_line.sigPositionChanged.connect(self.handle_start_move)
+        self.end_line.sigPositionChanged.connect(self.handle_end_move)
+        self.last_start_pos = self.start_index
+        self.last_end_pos = self.end_index
+
+    def create_line(self, x_pos):
+        line = pg.InfiniteLine(pos=x_pos, angle=90, pen=self.pen, movable=True)
+        print(f"Line created at position: {x_pos}")
+        return line
+
+    def remove_lines(self):
+        self.view_box.removeItem(self.start_line)
+        self.view_box.removeItem(self.end_line)
+        print("Red lines removed")
+
+    def handle_start_move(self):
+        new_pos = self.start_line.getPos()[0]
+        if abs(new_pos - self.last_start_pos) > 0.001:
+            self.start_index = new_pos
+            self.last_start_pos = new_pos
+            print(f"Start line moved to position: {self.start_index}")
+
+    def handle_end_move(self):
+        """Update end index when the end line moves."""
+        new_pos = self.end_line.getPos()[0]
+        if abs(new_pos - self.last_end_pos) > 0.001:
+            self.end_index = new_pos
+            self.last_end_pos = new_pos
+            print(f"End line moved to position: {self.end_index}")
+
+    def select_noise_range(self):
+        """Extract noise data from the selected range."""
+        if self.audio_data is not None:
+            start_idx = int(self.start_index * self.sample_rate)
+            end_idx = int(self.end_index * self.sample_rate)
+            noise_data = self.audio_data[start_idx:end_idx]
+            print(f"Noise range selected: {start_idx} to {end_idx}")
+            return noise_data
+
+    def estimate_noise_power(self):
+        noise_data = self.select_noise_range()
+        if noise_data is not None and len(noise_data) > 0:
+            noise_power = np.var(noise_data)
+            print(f"Noise power estimated: {noise_power}")
+        else:
+            print("No noise data selected yet.")
+            noise_power = 0
+        return noise_power
+
+    def apply_wiener_filter(self):
+
+        noise_power = self.estimate_noise_power()
+        if self.audio_data is not None:
+            if noise_power > 0:
+                print(f"Applying Wiener filter with noise power: {noise_power}")
+                filtered_audio = wiener(self.audio_data, noise=noise_power)
+                self.main_app.plot_output(filtered_audio)
+
+                ftt_data = np.fft.fft(filtered_audio)
+                fft_freq = np.fft.fftfreq(
+                    len(ftt_data), 1 / self.sample_rate
+                )
+                positive_freqs = fft_freq[: len(fft_freq) // 2]
+                original_magnitudes = np.abs(ftt_data[: len(ftt_data) // 2])
+                self.main_app.freq_plot_item.setData(positive_freqs, original_magnitudes)
+
+            else:
+                print("Noise power not estimated. Please select a noise range first.")
+        else:
+            print("No audio data available to filter.")
 
 
 class SignalViewer(QWidget):
     def __init__(self):
         super().__init__()
+
         self.layout = QVBoxLayout()
         self.plot_widget = pg.PlotWidget()
         self.media_player = QMediaPlayer()
@@ -56,17 +159,17 @@ class SignalViewer(QWidget):
         self.setLayout(self.layout)
 
     def load_waveform(self, file_path):
-        with wave.open(file_path, "rb") as wave_file:
-            self.sample_rate = wave_file.getframerate()
-            self.audio_data = np.frombuffer(wave_file.readframes(wave_file.getnframes()), dtype=np.int16)
-            if not self.cine_mode:
-                duration = len(self.audio_data) / self.sample_rate
-                x = np.linspace(0, duration / 2, len(self.audio_data))
-                self.plot_item.setData(x, self.audio_data)
-                self.plot_widget.setXRange(x[0], x[-1])
-                self.plot_widget.addItem(self.needle)
-            else:
-                self.plot_item.setData([], [])
+        self.audio_data, self.sample_rate = sf.read(file_path, always_2d=False)
+        self.audio_data = self.audio_data[:,
+                          0] if self.audio_data.ndim > 1 else self.audio_data
+        if not self.cine_mode:
+            duration = len(self.audio_data) / self.sample_rate
+            x = np.linspace(0, duration, len(self.audio_data))
+            self.plot_item.setData(x, self.audio_data)
+            self.plot_widget.setXRange(x[0], x[-1])
+            self.plot_widget.addItem(self.needle)
+        else:
+            self.plot_item.setData([], [])
 
     def play_audio(self):
         self.media_player.play()
@@ -77,7 +180,7 @@ class SignalViewer(QWidget):
             self.plot_item.setData([], [])
         else:
             duration = len(self.audio_data) / self.sample_rate
-            x = np.linspace(0, duration / 2, len(self.audio_data))
+            x = np.linspace(0, duration, len(self.audio_data))
             self.plot_item.setData(x, self.audio_data)
             self.plot_widget.setXRange(x[0], x[-1])
             self.plot_widget.addItem(self.needle)
@@ -143,6 +246,8 @@ class SignalViewer(QWidget):
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.end_index = None
+        self.start_index = None
         self.isCSV = False
         self.audio_data = None
         self.original_magnitudes = None
@@ -157,10 +262,10 @@ class MainApp(QMainWindow):
         self.freq_ranges = []
         self.sliders = []
         self.isShown = True
-        # self.min_freq_input = QLineEdit()
-        # self.min_freq_input.setPlaceholderText("Min Frequency (Hz)")
-        # self.max_freq_input = QLineEdit()
-        # self.max_freq_input.setPlaceholderText("Max Frequency (Hz)")
+        self.min_freq_input = QLineEdit()
+        self.min_freq_input.setPlaceholderText("Min Frequency (Hz)")
+        self.max_freq_input = QLineEdit()
+        self.max_freq_input.setPlaceholderText("Max Frequency (Hz)")
 
         with open("Style/index.qss", "r") as f:
             self.setStyleSheet(f.read())
@@ -221,6 +326,7 @@ class MainApp(QMainWindow):
         self.left_frame.setLayout(self.left_layout)
         # Signal viewers
         self.input_viewer = SignalViewer()
+
         self.output_viewer = SignalViewer()
 
         # Link input and output viewers
@@ -233,12 +339,9 @@ class MainApp(QMainWindow):
         self.input_output_layout = QHBoxLayout()
         self.input_output_layout.setContentsMargins(0, 0, 0, 0)
         self.input_output_frame.setLayout(self.input_output_layout)
-
         self.spectrogram_frame = QFrame()
         self.spectrogram_layout = QVBoxLayout()
         self.spectrogram_frame.setLayout(self.spectrogram_layout)
-
-        
 
         self.viewer_frame = QFrame()
         self.viewer_frame.setObjectName("viewer_frame")
@@ -306,8 +409,6 @@ class MainApp(QMainWindow):
         control_layout_left = QHBoxLayout()
         # control_frame_left.setLayout(control_layout_left)
 
-        
-
         # Create button groups
         self.plot_mode_group = QButtonGroup(self)
         self.freq_mode_group = QButtonGroup(self)
@@ -316,45 +417,30 @@ class MainApp(QMainWindow):
         self.normal_mode_button = QRadioButton("Normal Plot")
         self.cine_mode_button = QRadioButton("Cine Plot")
         self.normal_mode_button.setChecked(True)
-
-        # self.plot_mode_group.addButton(self.normal_mode_button)
-        # self.plot_mode_group.addButton(self.cine_mode_button)
-
         self.freq_mode_group.addButton(self.linear_scale_button)
         self.freq_mode_group.addButton(self.audiogram_scale_button)
 
         # Connect radio buttons to the method
         self.normal_mode_button.toggled.connect(self.change_plot_mode)
         self.cine_mode_button.toggled.connect(self.change_plot_mode)
-
-        # Add radio buttons to the control layout
-        # control_layout_left.addWidget(self.normal_mode_button)
-        # control_layout_left.addWidget(self.cine_mode_button)
-
         control_frame_center = QFrame()
         dummy_H.addSpacerItem(
             QSpacerItem(0, 40, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         )
-        # dummy_H.addWidget(control_frame_center)
         dummy_H.addSpacerItem(
             QSpacerItem(240, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         )
         control_frame_center.setObjectName("control_frame_center")
-        # control_frame_center.setMaximumHeight(70)
-        # control_frame_center.setMinimumHeight(70)
-        # control_frame_center.setMaximumWidth(750)
 
         control_layout_center = QVBoxLayout()
         control_layout_center.setContentsMargins(0, 0, 0, 0)
-        # control_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        control_top=QHBoxLayout()
+        control_top = QHBoxLayout()
         control_top.setContentsMargins(0, 0, 0, 0)
-        control_bottom=QHBoxLayout()
+        control_bottom = QHBoxLayout()
         control_bottom.setContentsMargins(0, 0, 0, 0)
 
         control_layout_center.addLayout(control_top)
         control_layout_center.addLayout(control_bottom)
-
 
         control_frame_center.setLayout(control_layout_center)
         control_top.addWidget(self.backward_button)
@@ -376,26 +462,23 @@ class MainApp(QMainWindow):
 
         control_frame_right.setLayout(control_layout_right)
 
-        iamge_frame=QFrame()
-        iamge_layout=QHBoxLayout()
+        iamge_frame = QFrame()
+        iamge_layout = QHBoxLayout()
         iamge_frame.setLayout(iamge_layout)
 
         self.image_label = QLabel()
-        self.image_label.setPixmap(QtGui.QPixmap("Style/icons/image.png"))  
-        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  
-        self.image_label.setScaledContents(True) 
-        self.image_label.setFixedSize(250, 250) 
+        self.image_label.setPixmap(QtGui.QPixmap("Style/icons/image.png"))
+        self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_label.setScaledContents(True)
+        self.image_label.setFixedSize(250, 250)
         iamge_layout.addWidget(self.image_label)
 
         self.left_layout.addWidget(control_frame_right)
-        
-
-        # self.right_layout.addLayout(dummy_H)
         self.linear_scale_button.setChecked(True)
         self.freq_frame = QFrame()
         self.freq_frame.setMaximumHeight(250)
         self.freq_layout = QHBoxLayout()
-        self.freq_layout.setContentsMargins(0, 0, 0, 0)  
+        self.freq_layout.setContentsMargins(0, 0, 0, 0)
         self.freq_frame.setLayout(self.freq_layout)
 
         self.freq_plot_widget = pg.PlotWidget()
@@ -440,46 +523,38 @@ class MainApp(QMainWindow):
         self.combo_box.setStyleSheet("QComboBox {font-size: 15px;}")
         self.combo_box.addItem("Uniform Mode")
         self.combo_box.addItem("Musical Mode")
-        self.combo_box.addItem("Animal Mode")
-        self.combo_box.addItem("ECG Abnormalities Mode")
+        self.combo_box.addItem("Animal Song Mode")
+        self.combo_box.addItem("Weiner Filter Mode")
         self.combo_box.addItem("Custom Range Mode")
         self.combo_box.currentIndexChanged.connect(self.change_mode)
-
 
         self.input_radio_button = QRadioButton("Input")
         self.output_radio_button = QRadioButton("Output")
         self.input_radio_button.setChecked(True)
         self.output_radio_button.setChecked(True)
 
+        self.wiener_filter_button = QPushButton("Apply Wiener Filter")
+        self.wiener_filter_button.setObjectName("wiener_filter_button")
+        self.wiener_filter_button.setVisible(False)
+        self.wiener_filter_button.clicked.connect(self.apply_wiener_filter)
+
         self.io_button_group = QButtonGroup(self)
         self.io_button_group.addButton(self.input_radio_button)
         self.io_button_group.addButton(self.output_radio_button)
-        
 
         control_layout_right.addWidget(self.combo_box)
         control_layout_right.addWidget(self.linear_scale_button)
         control_layout_right.addWidget(self.audiogram_scale_button)
-        # control_layout_right.addWidget(self.normal_mode_button)
-        # control_layout_right.addWidget(self.cine_mode_button)
         control_layout_right.addWidget(control_frame_center)
         control_layout_right.addWidget(self.input_radio_button)
         control_layout_right.addWidget(self.output_radio_button)
         control_layout_right.addWidget(self.show_hide_button)
-
-        # control_layout_right.addWidget(self.min_freq_input)
-        # control_layout_right.addWidget(self.max_freq_input)
-        control_layout_right.addSpacerItem(QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
+        control_layout_right.addWidget(self.wiener_filter_button)
+        control_layout_right.addWidget(self.min_freq_input)
+        control_layout_right.addWidget(self.max_freq_input)
+        control_layout_right.addSpacerItem(
+            QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
         control_layout_right.addWidget(iamge_frame)
-
-        # Add checkboxes for input and output
-        # self.input_checkbox = QCheckBox("Input")
-        # self.output_checkbox = QCheckBox("Output")
-        # self.input_checkbox.setChecked(True)
-        # self.output_checkbox.setChecked(True)
-        # control_layout_right.addWidget(self.input_checkbox)
-        # control_layout_right.addWidget(self.output_checkbox)
-
-        
 
         # Main layout
         layout = QHBoxLayout()
@@ -572,45 +647,45 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(
                     lambda value, index=i: self.update_frequency_graph(index)
                 )
-        # elif self.current_mode == "Custom Range Mode":
-        #
-        #     try:
-        #         min_freq = float(self.min_freq_input.text())
-        #         max_freq = float(self.max_freq_input.text())
-        #         freq_step = (max_freq - min_freq) / slider_num
-        #
-        #         for i in range(slider_num):
-        #             slider_container = QVBoxLayout()
-        #             slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-        #
-        #             slider = QSlider(Qt.Orientation.Vertical)
-        #             slider.setMinimum(0)
-        #             slider.setMaximum(10)
-        #             slider.setValue(5)
-        #             slider.setTickPosition(QSlider.TicksBothSides)
-        #             slider.setTickInterval(1)
-        #
-        #             freq_range_label = f"({min_freq + i * freq_step:.1f}, {min_freq + (i + 1) * freq_step:.1f}) Hz"
-        #             label = QLabel(freq_range_label)
-        #             label.setAlignment(Qt.AlignLeft)
-        #             label.setObjectName("slider_label")
-        #             label.setMaximumWidth(200)
-        #
-        #             slider_container.addWidget(slider)
-        #             slider_container.addWidget(label)
-        #
-        #             slider_layouts.append(slider_container)
-        #             self.sliders.append(slider)
-        #             slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
-        #
-        #     except ValueError:
-        #         # Handle invalid inputs gracefully
-        #         print("Please enter valid numerical values for frequency range.")
+        elif self.current_mode == "Custom Range Mode":
+
+            try:
+                min_freq = float(self.min_freq_input.text())
+                max_freq = float(self.max_freq_input.text())
+                freq_step = (max_freq - min_freq) / slider_num
+
+                for i in range(slider_num):
+                    slider_container = QVBoxLayout()
+                    slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+
+                    slider = QSlider(Qt.Orientation.Vertical)
+                    slider.setMinimum(0)
+                    slider.setMaximum(10)
+                    slider.setValue(5)
+                    slider.setTickPosition(QSlider.TicksBothSides)
+                    slider.setTickInterval(1)
+
+                    freq_range_label = f"({min_freq + i * freq_step:.1f}, {min_freq + (i + 1) * freq_step:.1f}) Hz"
+                    label = QLabel(freq_range_label)
+                    label.setAlignment(Qt.AlignLeft)
+                    label.setObjectName("slider_label")
+                    label.setMaximumWidth(200)
+
+                    slider_container.addWidget(slider)
+                    slider_container.addWidget(label)
+
+                    slider_layouts.append(slider_container)
+                    self.sliders.append(slider)
+                    slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
+
+            except ValueError:
+                # Handle invalid inputs gracefully
+                print("Please enter valid numerical values for frequency range.")
 
         elif self.current_mode == "Musical Mode":
 
-            freq_labels = ["Trumpet", "Piano", "Cymbals", "Xylophone"]
-            freq_ranges = [(0, 350), (350, 1000), (860, 4000), (4200, 22000)]
+            freq_labels = ["R", "S", "Drums", "Xylophone"]
+            freq_ranges = [(1320, 4400), (2800, 13500), (860, 4000), (4200, 22000)]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -644,10 +719,10 @@ class MainApp(QMainWindow):
                     lambda value, index=i: self.update_frequency_graph(index)
                 )
 
-        elif self.current_mode == "Animal Mode":
+        elif self.current_mode == "Animal Song Mode":
 
-            freq_labels = ["Whale", "Dog", "Cardinal", "Cricket"]
-            freq_ranges = [0, 650], [650, 1500], [1500, 1800], [1800, 12000]
+            freq_labels = ["Trumpet", "Whale", "Piano", "Frog", "Cardinal", "Xylophone"]
+            freq_ranges = [[0, 600], [600, 1200], [1200, 1600], [1600, 2800], [2800, 3600], [4000, 20000]]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -704,15 +779,30 @@ class MainApp(QMainWindow):
 
     def change_mode(self, index):
         self.current_mode = self.combo_box.itemText(index)
+        if self.current_mode == "Custom Range Mode":
+            self.min_freq_input.setEnabled(True)
+            self.max_freq_input.setEnabled(True)
+        else:
+            self.min_freq_input.setEnabled(False)
+            self.max_freq_input.setEnabled(False)
+            print(self.current_mode)
         self.update_sliders()
         self.reset_sliders()
-        # if self.current_mode == "Custom Range Mode":
-        #     self.min_freq_input.setEnabled(True)
-        #     self.max_freq_input.setEnabled(True)
-        # # else:
-        # self.min_freq_input.setEnabled(False)
-        # self.max_freq_input.setEnabled(False)
-        # print(self.current_mode)
+        if self.current_mode == "Weiner Filter Mode":
+
+            self.wiener_filter_button.setVisible(True)
+            self.signal_processor = SignalProcessingWithWienerFilter(self.input_viewer.plot_widget,
+                                                                     self.input_viewer.audio_data,
+                                                                     self.input_viewer.sample_rate, self)
+            # print("change mode create line")
+            # self.signal_processor.create_line(self.signal_processor.start_index)
+            # self.signal_processor.create_line(self.signal_processor.end_index)
+        else:
+            self.wiener_filter_button.setVisible(False)
+            if hasattr(self, 'signal_processor'):
+                self.signal_processor.remove_lines()
+
+        self.update_frequency_graph()
 
     def update_sliders(self):
 
@@ -726,7 +816,7 @@ class MainApp(QMainWindow):
                         widget.deleteLater()
                 self.slider_layout.removeItem(widget_to_remove)
 
-        slider_num = 10 if self.current_mode == "Uniform Mode" or self.current_mode == "Custom Range Mode" else 4
+        slider_num = 10 if self.current_mode == "Uniform Mode" or self.current_mode == "Custom Range Mode" else 6
         slider_layouts = self.create_sliders(slider_num)
         for slider_layout in slider_layouts:
             self.slider_layout.addLayout(slider_layout)
@@ -782,7 +872,6 @@ class MainApp(QMainWindow):
                         self.spec_canvas_1,
                         self.spec_plot_figure_1.gca(),
                     )
-            self.update_frequency_graph()
             self.play_audio()
             return (
                 self.ftt_data,
@@ -818,33 +907,26 @@ class MainApp(QMainWindow):
             self.output_viewer.plot_item.setData([], [])
         else:
             self.output_viewer.cine_mode = False
-            duration = (len(output_data) / self.input_viewer.sample_rate)
-            x = np.linspace(0, duration / 2, len(output_data))
+            duration = len(output_data) / self.input_viewer.sample_rate
+            x = np.linspace(0, duration, len(output_data))
             self.output_viewer.plot_item.setData(x, output_data)
             self.output_viewer.plot_widget.setXRange(x[0], x[-1])
             self.output_viewer.plot_widget.addItem(self.output_viewer.needle)
 
         self.output_viewer.media_player.stop()
-
-        self.audio_data = output_data.astype(np.int16)
-
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
             output_file_path = temp_file.name
-            wavfile.write(
-                output_file_path, self.input_viewer.sample_rate * 2, self.audio_data
-            )
+            sf.write(output_file_path, output_data, self.input_viewer.sample_rate)
 
-        self.output_viewer.media_player.setMedia(
-            QMediaContent(QUrl.fromLocalFile(output_file_path))
-        )
+        self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(output_file_path)))
+
+        # Ensure plotting of spectrogram if shown
         if self.isShown:
             self.plot_spectrogram(
-                self.audio_data,
-                self.input_viewer.sample_rate,
-                self.spec_canvas_2,
-
-                self.spec_plot_figure_2.gca(),
+                output_data, self.input_viewer.sample_rate, self.spec_canvas_2, self.spec_plot_figure_2.gca()
             )
+        if self.current_mode == "Weiner Filter Mode":
+            self.plot_difference()
 
     def fft(self):
         self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
@@ -880,8 +962,6 @@ class MainApp(QMainWindow):
                 label_text = labels[index].text()
                 freq_range_text = label_text.split("(")[-1].strip(") Hz")
                 min_freq, max_freq = map(float, freq_range_text.split(","))
-                # min_freq *= 1000.0
-                # max_freq *= 1000.0
                 if self.audiogram_scale_button.isChecked():
                     magnitudes_db = 20 * np.log10(self.modified_magnitudes)
                     self.freq_plot_item.setData(self.positive_freqs, magnitudes_db)
@@ -910,9 +990,12 @@ class MainApp(QMainWindow):
                     temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(
                         1j * np.angle(temp_ftt_data[:half_len])
                     )
-                    temp_ftt_data[half_len + 1:] = np.conj(
-                        temp_ftt_data[1:half_len][::-1]
-                    )
+
+                    # Handle size mismatch between halves
+                    if len(temp_ftt_data) % 2 == 0:  # Even length
+                        temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
+                    else:  # Odd length
+                        temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len + 1][::-1])
 
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
@@ -925,15 +1008,18 @@ class MainApp(QMainWindow):
                     )[0]
                     self.modified_magnitudes[freq_range] = 0
 
-                    # Use original FTT data as base for zeroed adjustment
                     temp_ftt_data = self.ftt_data.copy()
                     half_len = len(temp_ftt_data) // 2
                     temp_ftt_data[:half_len] = self.modified_magnitudes * np.exp(
                         1j * np.angle(temp_ftt_data[:half_len])
                     )
-                    temp_ftt_data[half_len + 1:] = np.conj(
-                        temp_ftt_data[1:half_len][::-1]
-                    )
+
+                    # Handle size mismatch between halves
+                    if len(temp_ftt_data) % 2 == 0:  # Even length
+                        temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
+                    else:  # Odd length
+                        temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len + 1][::-1])
+
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
                     self.plot_output(reconstructed_signal)
 
@@ -1009,6 +1095,29 @@ class MainApp(QMainWindow):
         self.input_viewer.backward_audio()
         self.output_viewer.backward_audio()
 
+    def apply_wiener_filter(self):
+        self.signal_processor.apply_wiener_filter()
+
+    def plot_difference(self):
+        if self.input_viewer.audio_data is not None and self.output_viewer.audio_data is not None:
+            input_data = self.input_viewer.audio_data
+            output_data = self.output_viewer.audio_data
+
+            # Ensure both arrays are of the same length
+            min_length = min(len(input_data), len(output_data))
+            input_data = input_data[:min_length]
+            output_data = output_data[:min_length]
+
+            difference = input_data - output_data
+
+            plt.figure(figsize=(10, 5))
+            plt.plot(difference, label='Difference')
+            plt.title('Difference between Input and Output Data')
+            plt.xlabel('Sample Index')
+            plt.ylabel('Amplitude Difference')
+            plt.legend()
+            plt.grid(True)
+            plt.show()
 
 def main():
     app = QApplication(sys.argv)
