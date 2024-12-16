@@ -222,7 +222,9 @@ class SignalViewer(QWidget):
 
     def forward_audio(self):
         current_position = self.media_player.position()
-        new_position = current_position + 200
+        duration = len(self.audio_data) / self.sample_rate
+        print(duration)
+        new_position = int(current_position + (100 * duration))
         self.media_player.setPosition(new_position)
 
         if self.cine_mode:
@@ -233,7 +235,8 @@ class SignalViewer(QWidget):
 
     def backward_audio(self):
         current_position = self.media_player.position()
-        new_position = max(0, current_position - 200)
+        duration = len(self.audio_data) / self.sample_rate
+        new_position = int(max(0, current_position - 100 * duration))
         self.media_player.setPosition(new_position)
 
         if self.cine_mode:
@@ -264,8 +267,8 @@ class MainApp(QMainWindow):
         self.isShown = True
         self.min_freq_input = QLineEdit()
         self.min_freq_input.setPlaceholderText("Min Frequency (Hz)")
-        self.max_freq_input = QLineEdit()
-        self.max_freq_input.setPlaceholderText("Max Frequency (Hz)")
+        # self.max_freq_input = QLineEdit()
+        # self.max_freq_input.setPlaceholderText("Max Frequency (Hz)")
 
         with open("Style/index.qss", "r") as f:
             self.setStyleSheet(f.read())
@@ -525,7 +528,7 @@ class MainApp(QMainWindow):
         self.combo_box.addItem("Musical Mode")
         self.combo_box.addItem("Animal Song Mode")
         self.combo_box.addItem("Weiner Filter Mode")
-        self.combo_box.addItem("Custom Range Mode")
+        # self.combo_box.addItem("Custom Range Mode")
         self.combo_box.currentIndexChanged.connect(self.change_mode)
 
         self.input_radio_button = QRadioButton("Input")
@@ -550,8 +553,8 @@ class MainApp(QMainWindow):
         control_layout_right.addWidget(self.output_radio_button)
         control_layout_right.addWidget(self.show_hide_button)
         control_layout_right.addWidget(self.wiener_filter_button)
-        control_layout_right.addWidget(self.min_freq_input)
-        control_layout_right.addWidget(self.max_freq_input)
+        # control_layout_right.addWidget(self.min_freq_input)
+        # control_layout_right.addWidget(self.max_freq_input)
         control_layout_right.addSpacerItem(
             QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
         control_layout_right.addWidget(iamge_frame)
@@ -647,45 +650,45 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(
                     lambda value, index=i: self.update_frequency_graph(index)
                 )
-        elif self.current_mode == "Custom Range Mode":
-
-            try:
-                min_freq = float(self.min_freq_input.text())
-                max_freq = float(self.max_freq_input.text())
-                freq_step = (max_freq - min_freq) / slider_num
-
-                for i in range(slider_num):
-                    slider_container = QVBoxLayout()
-                    slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-
-                    slider = QSlider(Qt.Orientation.Vertical)
-                    slider.setMinimum(0)
-                    slider.setMaximum(10)
-                    slider.setValue(5)
-                    slider.setTickPosition(QSlider.TicksBothSides)
-                    slider.setTickInterval(1)
-
-                    freq_range_label = f"({min_freq + i * freq_step:.1f}, {min_freq + (i + 1) * freq_step:.1f}) Hz"
-                    label = QLabel(freq_range_label)
-                    label.setAlignment(Qt.AlignLeft)
-                    label.setObjectName("slider_label")
-                    label.setMaximumWidth(200)
-
-                    slider_container.addWidget(slider)
-                    slider_container.addWidget(label)
-
-                    slider_layouts.append(slider_container)
-                    self.sliders.append(slider)
-                    slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
-
-            except ValueError:
-                # Handle invalid inputs gracefully
-                print("Please enter valid numerical values for frequency range.")
+        # elif self.current_mode == "Custom Range Mode":
+        #
+        #     try:
+        #         min_freq = float(self.min_freq_input.text())
+        #         max_freq = float(self.max_freq_input.text())
+        #         freq_step = (max_freq - min_freq) / slider_num
+        #
+        #         for i in range(slider_num):
+        #             slider_container = QVBoxLayout()
+        #             slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        #
+        #             slider = QSlider(Qt.Orientation.Vertical)
+        #             slider.setMinimum(0)
+        #             slider.setMaximum(10)
+        #             slider.setValue(5)
+        #             slider.setTickPosition(QSlider.TicksBothSides)
+        #             slider.setTickInterval(1)
+        #
+        #             freq_range_label = f"({min_freq + i * freq_step:.1f}, {min_freq + (i + 1) * freq_step:.1f}) Hz"
+        #             label = QLabel(freq_range_label)
+        #             label.setAlignment(Qt.AlignLeft)
+        #             label.setObjectName("slider_label")
+        #             label.setMaximumWidth(200)
+        #
+        #             slider_container.addWidget(slider)
+        #             slider_container.addWidget(label)
+        #
+        #             slider_layouts.append(slider_container)
+        #             self.sliders.append(slider)
+        #             slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
+        #
+        #     except ValueError:
+        #         # Handle invalid inputs gracefully
+        #         print("Please enter valid numerical values for frequency range.")
 
         elif self.current_mode == "Musical Mode":
 
-            freq_labels = ["R", "S", "Drums", "Xylophone"]
-            freq_ranges = [(1320, 4400), (2800, 13500), (860, 4000), (4200, 22000)]
+            freq_labels = ["Drums", "Violin", "OOOh", "R", "S", "Xylophone"]
+            freq_ranges = [(0, 400), (400, 4000), (200, 800), (1320, 4400), (2200, 13500), (4000, 20000)]
 
             for i in range(slider_num):
                 slider_container = QVBoxLayout()
@@ -701,15 +704,7 @@ class MainApp(QMainWindow):
                     f"{freq_labels[i]} ({freq_ranges[i][0]:.1f}, {freq_ranges[i][1]:.1f})"
                 )
                 label.setAlignment(Qt.AlignLeft)
-                label.setObjectName("slider_label")
-                if i == 0:
-                    label.setMaximumWidth(127)
-                elif i == 1:
-                    label.setMaximumWidth(150)
-                elif i == 2:
-                    label.setMaximumWidth(147)
-                elif i == 3:
-                    label.setMaximumWidth(165)
+                label.setMaximumWidth(140)
                 slider_container.addWidget(slider)
                 slider_container.addWidget(label)
 
@@ -779,13 +774,13 @@ class MainApp(QMainWindow):
 
     def change_mode(self, index):
         self.current_mode = self.combo_box.itemText(index)
-        if self.current_mode == "Custom Range Mode":
-            self.min_freq_input.setEnabled(True)
-            self.max_freq_input.setEnabled(True)
-        else:
-            self.min_freq_input.setEnabled(False)
-            self.max_freq_input.setEnabled(False)
-            print(self.current_mode)
+        # if self.current_mode == "Custom Range Mode":
+        #     self.min_freq_input.setEnabled(True)
+        #     self.max_freq_input.setEnabled(True)
+        # else:
+        #     self.min_freq_input.setEnabled(False)
+        #     self.max_freq_input.setEnabled(False)
+        #     print(self.current_mode)
         self.update_sliders()
         self.reset_sliders()
         if self.current_mode == "Weiner Filter Mode":
@@ -816,7 +811,12 @@ class MainApp(QMainWindow):
                         widget.deleteLater()
                 self.slider_layout.removeItem(widget_to_remove)
 
-        slider_num = 10 if self.current_mode == "Uniform Mode" or self.current_mode == "Custom Range Mode" else 6
+        if self.current_mode == "Uniform Mode" or self.current_mode == "Custom Range Mode":
+            slider_num = 10
+        elif self.current_mode == "Musical Mode":
+            slider_num = 6
+        else:
+            slider_num = 6
         slider_layouts = self.create_sliders(slider_num)
         for slider_layout in slider_layouts:
             self.slider_layout.addLayout(slider_layout)
@@ -1088,8 +1088,10 @@ class MainApp(QMainWindow):
         self.output_viewer.timer.start(35)
 
     def forward_audio(self):
-        self.input_viewer.forward_audio()
-        self.output_viewer.forward_audio()
+        if self.input_radio_button.isChecked():
+            self.input_viewer.forward_audio()
+        else:
+            self.output_viewer.forward_audio()
 
     def backward_audio(self):
         self.input_viewer.backward_audio()
@@ -1118,6 +1120,7 @@ class MainApp(QMainWindow):
             plt.legend()
             plt.grid(True)
             plt.show()
+
 
 def main():
     app = QApplication(sys.argv)
