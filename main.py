@@ -1,72 +1,54 @@
 import csv
-import tempfile
-
-import pandas as pd
-from PyQt5.QtGui import QPen
-from PyQt5.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QVBoxLayout,
-    QWidget,
-    QRadioButton,
-    QPushButton,
-    QComboBox,
-    QFileDialog,
-    QHBoxLayout,
-    QFrame,
-    QSlider,
-    QLabel,
-    QSizePolicy,
-    QSpacerItem,
-    QButtonGroup, QLineEdit, QGraphicsScene, QGraphicsLineItem,
-)
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtCore import QUrl, QTimer, Qt
-import pyqtgraph as pg
-import numpy as np
 import sys
-
+import tempfile
+import numpy as np
+import pandas as pd
+import soundfile as sf
+from scipy.io import wavfile
+from scipy.signal import spectrogram
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from scipy.io import wavfile
-from PyQt5 import QtGui
-from PyQt5 import QtCore
-import soundfile as sf
-from scipy.signal import spectrogram, wiener
+from PyQt5 import QtGui, QtCore
+from PyQt5.QtCore import QUrl, QTimer, Qt
+from PyQt5.QtGui import QPen, QColor
+from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QVBoxLayout, QWidget, QRadioButton, QPushButton,
+    QComboBox, QFileDialog, QHBoxLayout, QFrame, QSlider, QLabel, QSizePolicy,
+    QSpacerItem, QButtonGroup, QLineEdit, QGraphicsScene, QGraphicsLineItem
+)
+import pyqtgraph as pg
 
 
 class SignalProcessingWithWienerFilter:
-    def __init__(self, plot_widget, audio_data, sample_rate, main_app):
+    def __init__(self, plot_widget, audio_data, sample_rate, main_app, alpha=1.0):
         """ Initialize signal processing with Wiener filter. """
         self.plot_widget = plot_widget
         self.audio_data = audio_data
         self.sample_rate = sample_rate
         self.main_app = main_app
+        self.alpha = alpha
         duration = len(self.audio_data) / self.sample_rate
 
-        # Initialize attributes for the Wiener filter
         self.noise_data = None
         self.noise_power = 0
+        self.blue_region = None
 
-        # Initialize start and end indices for the lines
         self.start_index = 0
         self.end_index = duration if audio_data.any() else 100
 
-        # Create thin red pen for line indicators
         self.pen = QPen(Qt.red)
-        self.pen.setWidthF(duration / 1000)  # Thin line width
+        self.pen.setWidthF(duration / 1000)
 
         print("Class initialized with red lines")
         self.start_line = self.create_line(self.start_index)
         self.end_line = self.create_line(self.end_index)
 
-        # Add lines to the plot widget directly (via ViewBox)
         self.view_box = self.plot_widget.getPlotItem().getViewBox()
         self.view_box.addItem(self.start_line)
         self.view_box.addItem(self.end_line)
 
-        # Enable interaction by making the lines movable
         self.start_line.sigPositionChanged.connect(self.handle_start_move)
         self.end_line.sigPositionChanged.connect(self.handle_end_move)
         self.last_start_pos = self.start_index
@@ -80,7 +62,31 @@ class SignalProcessingWithWienerFilter:
     def remove_lines(self):
         self.view_box.removeItem(self.start_line)
         self.view_box.removeItem(self.end_line)
-        print("Red lines removed")
+        self.remove_blue_region()
+        print("Red lines and blue region removed")
+
+    def create_blue_region(self):
+        """Create or update the faint blue region between the red lines."""
+        if self.blue_region is None:
+
+            self.blue_region = pg.LinearRegionItem(
+                values=(self.start_index, self.end_index),
+                brush=pg.mkBrush(QColor(0, 0, 255, 50)),
+                movable=False,
+            )
+            self.view_box.addItem(self.blue_region)
+            print(f"Blue region created between: {self.start_index} and {self.end_index}")
+        else:
+
+            self.blue_region.setRegion((self.start_index, self.end_index))
+            print(f"Blue region updated to: {self.start_index} and {self.end_index}")
+
+    def remove_blue_region(self):
+        """Remove the blue region if it exists."""
+        if self.blue_region is not None:
+            self.view_box.removeItem(self.blue_region)
+            self.blue_region = None
+            print("Blue region removed")
 
     def handle_start_move(self):
         new_pos = self.start_line.getPos()[0]
@@ -88,6 +94,7 @@ class SignalProcessingWithWienerFilter:
             self.start_index = new_pos
             self.last_start_pos = new_pos
             print(f"Start line moved to position: {self.start_index}")
+            self.create_blue_region()
 
     def handle_end_move(self):
         """Update end index when the end line moves."""
@@ -96,6 +103,7 @@ class SignalProcessingWithWienerFilter:
             self.end_index = new_pos
             self.last_end_pos = new_pos
             print(f"End line moved to position: {self.end_index}")
+            self.create_blue_region()
 
     def select_noise_range(self):
         """Extract noise data from the selected range."""
@@ -117,21 +125,27 @@ class SignalProcessingWithWienerFilter:
         return noise_power
 
     def apply_wiener_filter(self):
-
-        noise_power = self.estimate_noise_power()
+        """Apply a custom Wiener filter with an adjustable alpha."""
+        self.create_blue_region()
+        noise_power_spectrum = self.estimate_noise_power()
         if self.audio_data is not None:
-            if noise_power > 0:
-                print(f"Applying Wiener filter with noise power: {noise_power}")
-                filtered_audio = wiener(self.audio_data, noise=noise_power)
+            if noise_power_spectrum > 0:
+                print(f"Applying Wiener filter with noise power: {noise_power_spectrum}")
+
+                audio_fft = np.fft.fft(self.audio_data)
+                power_spectrum_signal = np.abs(audio_fft) ** 2
+                wiener_filter = power_spectrum_signal / (power_spectrum_signal + self.alpha * noise_power_spectrum)
+
+                filtered_fft = wiener_filter * audio_fft
+
+                filtered_audio = np.fft.ifft(filtered_fft).real
+
                 self.main_app.plot_output(filtered_audio)
 
-                ftt_data = np.fft.fft(filtered_audio)
-                fft_freq = np.fft.fftfreq(
-                    len(ftt_data), 1 / self.sample_rate
-                )
+                fft_freq = np.fft.fftfreq(len(filtered_fft), 1 / self.sample_rate)
                 positive_freqs = fft_freq[: len(fft_freq) // 2]
-                original_magnitudes = np.abs(ftt_data[: len(ftt_data) // 2])
-                self.main_app.freq_plot_item.setData(positive_freqs, original_magnitudes)
+                magnitudes = np.abs(filtered_fft[: len(filtered_fft) // 2])
+                self.main_app.freq_plot_item.setData(positive_freqs, magnitudes)
 
             else:
                 print("Noise power not estimated. Please select a noise range first.")
@@ -267,8 +281,6 @@ class MainApp(QMainWindow):
         self.isShown = True
         self.min_freq_input = QLineEdit()
         self.min_freq_input.setPlaceholderText("Min Frequency (Hz)")
-        # self.max_freq_input = QLineEdit()
-        # self.max_freq_input.setPlaceholderText("Max Frequency (Hz)")
 
         with open("Style/index.qss", "r") as f:
             self.setStyleSheet(f.read())
@@ -327,16 +339,14 @@ class MainApp(QMainWindow):
         self.left_frame.setMaximumWidth(350)
         self.left_layout = QVBoxLayout()
         self.left_frame.setLayout(self.left_layout)
-        # Signal viewers
+
         self.input_viewer = SignalViewer()
 
         self.output_viewer = SignalViewer()
 
-        # Link input and output viewers
         self.input_viewer.plot_widget.setXLink(self.output_viewer.plot_widget)
         self.input_viewer.plot_widget.setYLink(self.output_viewer.plot_widget)
 
-        # Viewer frame
         self.input_output_frame = QFrame()
         self.input_output_frame.setObjectName("input_output_frame")
         self.input_output_layout = QHBoxLayout()
@@ -358,10 +368,8 @@ class MainApp(QMainWindow):
         self.input_output_layout.addWidget(self.viewer_frame)
         self.input_output_layout.addWidget(self.spectrogram_frame)
 
-        # Add viewer to right layout
         self.right_layout.addWidget(self.input_output_frame)
 
-        # Control buttons
         self.load_button = QPushButton()
         self.load_button.setIcon(loadIcon)
         self.load_button.setIconSize(QtCore.QSize(24, 24))
@@ -403,27 +411,22 @@ class MainApp(QMainWindow):
         self.linear_scale_button.toggled.connect(self.update_frequency_graph)
         self.audiogram_scale_button.toggled.connect(self.update_frequency_graph)
 
-        # Control layout
         dummy_H = QHBoxLayout()
 
         control_frame_left = QFrame()
         control_frame_left.setObjectName("control_frame_left")
         dummy_H.addWidget(control_frame_left)
         control_layout_left = QHBoxLayout()
-        # control_frame_left.setLayout(control_layout_left)
 
-        # Create button groups
         self.plot_mode_group = QButtonGroup(self)
         self.freq_mode_group = QButtonGroup(self)
 
-        # Add radio buttons for Normal Mode and Cine Mode
         self.normal_mode_button = QRadioButton("Normal Plot")
         self.cine_mode_button = QRadioButton("Cine Plot")
         self.normal_mode_button.setChecked(True)
         self.freq_mode_group.addButton(self.linear_scale_button)
         self.freq_mode_group.addButton(self.audiogram_scale_button)
 
-        # Connect radio buttons to the method
         self.normal_mode_button.toggled.connect(self.change_plot_mode)
         self.cine_mode_button.toggled.connect(self.change_plot_mode)
         control_frame_center = QFrame()
@@ -518,7 +521,6 @@ class MainApp(QMainWindow):
         cbar2.set_label("Magnitude [dB]")
         self.spectrogram_layout.addWidget(self.spec_canvas_1)
         self.spectrogram_layout.addWidget(self.spec_canvas_2)
-        # self.right_layout.addWidget(self.spec_frame)
 
         self.combo_box = QComboBox()
         self.combo_box.setObjectName("combo_box")
@@ -528,13 +530,26 @@ class MainApp(QMainWindow):
         self.combo_box.addItem("Musical Mode")
         self.combo_box.addItem("Animal Song Mode")
         self.combo_box.addItem("Weiner Filter Mode")
-        # self.combo_box.addItem("Custom Range Mode")
+
         self.combo_box.currentIndexChanged.connect(self.change_mode)
 
         self.input_radio_button = QRadioButton("Input")
         self.output_radio_button = QRadioButton("Output")
         self.input_radio_button.setChecked(True)
         self.output_radio_button.setChecked(True)
+
+        self.alpha_label = QLabel("Alpha:")
+        self.alpha_slider = QSlider(Qt.Orientation.Horizontal)
+        self.alpha_slider.setMinimum(1)
+        self.alpha_slider.setMaximum(1000000)
+        self.alpha_slider.setValue(1)
+        self.alpha_slider.setTickPosition(QSlider.TicksBelow)
+        self.alpha_slider.setTickInterval(100000)
+        self.alpha_slider.valueChanged.connect(self.update_alpha)
+        self.alpha_value_label = QLabel(str(self.alpha_slider.value()))
+
+        self.alpha_slider.setVisible(False)
+        self.alpha_label.setVisible(False)
 
         self.wiener_filter_button = QPushButton("Apply Wiener Filter")
         self.wiener_filter_button.setObjectName("wiener_filter_button")
@@ -552,14 +567,15 @@ class MainApp(QMainWindow):
         control_layout_right.addWidget(self.input_radio_button)
         control_layout_right.addWidget(self.output_radio_button)
         control_layout_right.addWidget(self.show_hide_button)
+        control_layout_right.addWidget(self.alpha_label)
+        control_layout_right.addWidget(self.alpha_slider)
+
         control_layout_right.addWidget(self.wiener_filter_button)
-        # control_layout_right.addWidget(self.min_freq_input)
-        # control_layout_right.addWidget(self.max_freq_input)
+
         control_layout_right.addSpacerItem(
             QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding))
         control_layout_right.addWidget(iamge_frame)
 
-        # Main layout
         layout = QHBoxLayout()
         layout.addWidget(self.left_frame)
         layout.addWidget(self.right_frame)
@@ -650,40 +666,40 @@ class MainApp(QMainWindow):
                 slider.valueChanged.connect(
                     lambda value, index=i: self.update_frequency_graph(index)
                 )
-        # elif self.current_mode == "Custom Range Mode":
-        #
-        #     try:
-        #         min_freq = float(self.min_freq_input.text())
-        #         max_freq = float(self.max_freq_input.text())
-        #         freq_step = (max_freq - min_freq) / slider_num
-        #
-        #         for i in range(slider_num):
-        #             slider_container = QVBoxLayout()
-        #             slider_container.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-        #
-        #             slider = QSlider(Qt.Orientation.Vertical)
-        #             slider.setMinimum(0)
-        #             slider.setMaximum(10)
-        #             slider.setValue(5)
-        #             slider.setTickPosition(QSlider.TicksBothSides)
-        #             slider.setTickInterval(1)
-        #
-        #             freq_range_label = f"({min_freq + i * freq_step:.1f}, {min_freq + (i + 1) * freq_step:.1f}) Hz"
-        #             label = QLabel(freq_range_label)
-        #             label.setAlignment(Qt.AlignLeft)
-        #             label.setObjectName("slider_label")
-        #             label.setMaximumWidth(200)
-        #
-        #             slider_container.addWidget(slider)
-        #             slider_container.addWidget(label)
-        #
-        #             slider_layouts.append(slider_container)
-        #             self.sliders.append(slider)
-        #             slider.valueChanged.connect(lambda value, index=i: self.update_frequency_graph(index))
-        #
-        #     except ValueError:
-        #         # Handle invalid inputs gracefully
-        #         print("Please enter valid numerical values for frequency range.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         elif self.current_mode == "Musical Mode":
 
@@ -774,25 +790,21 @@ class MainApp(QMainWindow):
 
     def change_mode(self, index):
         self.current_mode = self.combo_box.itemText(index)
-        # if self.current_mode == "Custom Range Mode":
-        #     self.min_freq_input.setEnabled(True)
-        #     self.max_freq_input.setEnabled(True)
-        # else:
-        #     self.min_freq_input.setEnabled(False)
-        #     self.max_freq_input.setEnabled(False)
-        #     print(self.current_mode)
+
         self.update_sliders()
         self.reset_sliders()
         if self.current_mode == "Weiner Filter Mode":
 
             self.wiener_filter_button.setVisible(True)
+            self.alpha_slider.setVisible(True)
+            self.alpha_label.setVisible(True)
             self.signal_processor = SignalProcessingWithWienerFilter(self.input_viewer.plot_widget,
                                                                      self.input_viewer.audio_data,
                                                                      self.input_viewer.sample_rate, self)
-            # print("change mode create line")
-            # self.signal_processor.create_line(self.signal_processor.start_index)
-            # self.signal_processor.create_line(self.signal_processor.end_index)
+
         else:
+            self.alpha_slider.setVisible(False)
+            self.alpha_label.setVisible(False)
             self.wiener_filter_button.setVisible(False)
             if hasattr(self, 'signal_processor'):
                 self.signal_processor.remove_lines()
@@ -847,7 +859,6 @@ class MainApp(QMainWindow):
                     QMediaContent(QUrl.fromLocalFile(file_path))
                 )
 
-            # Ensure fft is called to initialize original_magnitudes
             (
                 self.ftt_data,
                 self.fft_freq,
@@ -873,6 +884,7 @@ class MainApp(QMainWindow):
                         self.spec_plot_figure_1.gca(),
                     )
             self.play_audio()
+            self.change_mode(self.combo_box.currentIndex())
             return (
                 self.ftt_data,
                 self.fft_freq,
@@ -883,9 +895,8 @@ class MainApp(QMainWindow):
     def convert_csv_to_wav(self, file_path, sample_rate=44100):
         data = pd.read_csv(file_path, header=None)
 
-        # Check if the CSV file has two columns
         if data.shape[1] == 2:
-            # Select only the second column
+
             samples = data.iloc[:, 1].values
         else:
             samples = data.values.flatten()
@@ -920,13 +931,10 @@ class MainApp(QMainWindow):
 
         self.output_viewer.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(output_file_path)))
 
-        # Ensure plotting of spectrogram if shown
         if self.isShown:
             self.plot_spectrogram(
                 output_data, self.input_viewer.sample_rate, self.spec_canvas_2, self.spec_plot_figure_2.gca()
             )
-        if self.current_mode == "Weiner Filter Mode":
-            self.plot_difference()
 
     def fft(self):
         self.ftt_data = np.fft.fft(self.input_viewer.audio_data)
@@ -991,10 +999,9 @@ class MainApp(QMainWindow):
                         1j * np.angle(temp_ftt_data[:half_len])
                     )
 
-                    # Handle size mismatch between halves
-                    if len(temp_ftt_data) % 2 == 0:  # Even length
+                    if len(temp_ftt_data) % 2 == 0:
                         temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
-                    else:  # Odd length
+                    else:
                         temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len + 1][::-1])
 
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
@@ -1014,10 +1021,9 @@ class MainApp(QMainWindow):
                         1j * np.angle(temp_ftt_data[:half_len])
                     )
 
-                    # Handle size mismatch between halves
-                    if len(temp_ftt_data) % 2 == 0:  # Even length
+                    if len(temp_ftt_data) % 2 == 0:
                         temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len][::-1])
-                    else:  # Odd length
+                    else:
                         temp_ftt_data[half_len + 1:] = np.conj(temp_ftt_data[1:half_len + 1][::-1])
 
                     reconstructed_signal = np.fft.ifft(temp_ftt_data).real
@@ -1038,7 +1044,6 @@ class MainApp(QMainWindow):
 
     def clear_spectrogram(self):
         if hasattr(self, 'spec_canvas_1') and self.spec_canvas_1:
-            # Clear the canvas using Matplotlib's methods
             self.spec_canvas_1.figure.clf()
         if hasattr(self, 'spec_canvas_2') and self.spec_canvas_2:
             self.spec_canvas_2.figure.clf()
@@ -1063,7 +1068,7 @@ class MainApp(QMainWindow):
         with open(file_name, "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow((["Frequency"]))
-            # Write each item in the list to a new row
+
             for row1 in input_file:
                 writer.writerow([row1])
 
@@ -1100,12 +1105,16 @@ class MainApp(QMainWindow):
     def apply_wiener_filter(self):
         self.signal_processor.apply_wiener_filter()
 
+    def update_alpha(self):
+        new_alpha = self.alpha_slider.value()
+        self.signal_processor.alpha = new_alpha
+        self.signal_processor.apply_wiener_filter()
+
     def plot_difference(self):
         if self.input_viewer.audio_data is not None and self.output_viewer.audio_data is not None:
             input_data = self.input_viewer.audio_data
             output_data = self.output_viewer.audio_data
 
-            # Ensure both arrays are of the same length
             min_length = min(len(input_data), len(output_data))
             input_data = input_data[:min_length]
             output_data = output_data[:min_length]
