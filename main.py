@@ -376,7 +376,7 @@ class MainApp(QMainWindow):
         control_frame_right.setLayout(control_layout_right)
 
         iamge_frame=QFrame()
-        iamge_layout=QHBoxLayout()
+        iamge_layout=QHBoxLayout()git 
         iamge_frame.setLayout(iamge_layout)
 
         self.image_label = QLabel()
