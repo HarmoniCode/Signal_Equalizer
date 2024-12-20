@@ -1,30 +1,58 @@
-import pandas as pd
 import numpy as np
-from scipy.io import wavfile
-import tkinter as tk
-from tkinter import filedialog
+import soundfile as sf
+from PyQt5.QtWidgets import QApplication, QFileDialog
 
-def convert_wav_to_csv():
-    # Open the file dialog to select a WAV file
-    root = tk.Tk()
-    root.withdraw()  # Hide the Tkinter root window
-    file_path = filedialog.askopenfilename(title="Select WAV File", filetypes=[("WAV Files", "*.wav")])
 
-    if file_path:
-        sample_rate, data = wavfile.read(file_path)
-        duration = len(data) / sample_rate
-        time = np.linspace(0., duration, len(data))
+def add_white_noise_with_dialog(noise_level=0.1):
+    """
+    Add white noise to an audio file selected via a file dialog and save the result to a location of choice.
 
-        # Create a DataFrame with time and amplitude
-        df = pd.DataFrame({'Time': time, 'Amplitude': data})
+    Parameters:
+    - noise_level (float): The intensity of the noise to be added (default is 0.1).
+    """
+    # Start a Qt application to open a file dialog
+    app = QApplication([])
 
-        # Use file dialog to save the CSV file
-        output_file = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV Files", "*.csv")])
-        if output_file:
-            df.to_csv(output_file, index=False, header=False)
-            print(f"Converted CSV file saved at: {output_file}")
-        else:
-            print("No output file selected.")
+    # Open a file dialog to choose the input audio file
+    input_file, _ = QFileDialog.getOpenFileName(None, "Select Audio File", "", "Audio Files (*.wav *.flac *.aiff)")
 
-# Run the function
-convert_wav_to_csv()
+    if not input_file:
+        print("No input file selected.")
+        return
+
+    # Open a file dialog to choose the folder where the noisy audio will be saved
+    output_file, _ = QFileDialog.getSaveFileName(None, "Save Noisy Audio", "", "WAV Files (*.wav)")
+
+    if not output_file:
+        print("No output file selected.")
+        return
+
+    # Check if the selected output file has the correct extension
+    if not output_file.endswith(".wav"):
+        output_file += ".wav"  # Ensure the file ends with .wav extension
+
+    # Read the input audio file
+    audio_data, sample_rate = sf.read(input_file)
+
+    # Normalize the audio data to float32 for processing
+    audio_data = audio_data.astype(np.float32)
+
+    # Generate white noise with the same shape as the audio data
+    noise = np.random.normal(0, 1, audio_data.shape)
+
+    # Scale the noise by the noise level (you can adjust this to control the intensity)
+    noise = noise * noise_level * np.max(np.abs(audio_data))
+
+    # Add the noise to the original audio data
+    noisy_audio = audio_data + noise
+
+    # Clip the values to be in the valid range of audio data
+    noisy_audio = np.clip(noisy_audio, -1, 1)
+
+    # Save the noisy audio to the selected output file
+    sf.write(output_file, noisy_audio, sample_rate)
+
+    print(f"White noise added and saved to {output_file}")
+
+
+add_white_noise_with_dialog(0.05/2.5)
