@@ -49,7 +49,3 @@ To run the main script, use the following command:
 ```sh
 python main.py
 ```
-
-## License
-
-This project is licensed under the MIT License.
