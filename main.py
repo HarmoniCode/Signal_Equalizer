@@ -473,7 +473,7 @@ class MainApp(QMainWindow):
         iamge_frame.setLayout(iamge_layout)
 
         self.image_label = QLabel()
-        self.image_label.setPixmap(QtGui.QPixmap("Style/icons/image.png"))
+        self.image_label.setPixmap(QtGui.QPixmap("Style/icons/logo.png"))
         self.image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.image_label.setScaledContents(True)
         self.image_label.setFixedSize(250, 250)
