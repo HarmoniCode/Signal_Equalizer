@@ -30,7 +30,7 @@ Signal Equalizer is a Python project designed to process and analyze various typ
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/ahmed-226/Signal_Equalizer.git
+   git clone https://github.com/HarmoniCode/Signal_Equalizer.git
    ```
 
 2. Navigate to the project directory:
